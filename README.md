@@ -22,13 +22,13 @@
 
 ```bash
 # 安装依赖
-npm install
+yarn install
 
 # 启动开发服务器
-npm run dev
+yarn dev
 
 # 构建生产版本
-npm run build
+yarn build
 ```
 
 ## 使用说明

@@ -10,9 +10,9 @@
   "dependencies": {
     "vue": "^3.4.0",
     "three": "^0.160.0",
-    "@mediapipe/hands": "^0.4.1675469404",
-    "@mediapipe/camera_utils": "^0.3.1675466869",
-    "@mediapipe/drawing_utils": "^0.3.1620248257",
+    "@mediapipe/hands": "^0.4",
+    "@mediapipe/camera_utils": "^0.3",
+    "@mediapipe/drawing_utils": "^0.3",
     "gsap": "^3.12.5"
   },
   "devDependencies": {
