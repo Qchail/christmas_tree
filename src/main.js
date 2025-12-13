@@ -2655,11 +2655,28 @@ function updateScatterAnimation() {
 
 // 切换散开/聚集状态
 function toggleScatter() {
-  if (isAnimating) return; // 如果正在动画，忽略
+  const now = Date.now();
+
+  // 如果正在动画中，允许打断并反转
+  if (isAnimating) {
+    // 计算当前动画已进行的时间
+    const elapsed = now - animationStartTime;
+    const effectiveElapsed = Math.min(elapsed, scatterDuration);
+
+    // 反转时间：让动画从"当前进度的对立面"继续
+    // 例如：如果散开动画进行了30%（即还剩70%未完成），反转为聚拢时，
+    // 我们希望聚拢动画表现为"已经进行了70%"（即还剩30%回到原点）
+    // 这样视觉位置就是连续的，且会从当前位置往回缩
+    const newElapsed = scatterDuration - effectiveElapsed;
+
+    animationStartTime = now - newElapsed;
+    isScattered = !isScattered;
+    return;
+  }
 
   isScattered = !isScattered;
   isAnimating = true;
-  animationStartTime = Date.now();
+  animationStartTime = now;
 
   if (isScattered) {
     // 散开：如果还没有散开位置，则生成新的随机位置
@@ -2667,7 +2684,6 @@ function toggleScatter() {
     if (!scatteredPositions.particleCone || !scatteredPositions.star) {
       generateScatteredPositions();
     }
-    // 注意：旋转速度现在在动画循环中根据进度逐步变化，不再立即设置
   }
 }
 
