@@ -1267,6 +1267,10 @@ function createOrnaments() {
   const redOrnaments = createOrnamentGroup(particleConfig.redOrnaments);
   if (redOrnaments) mainGroup.add(redOrnaments);
 
+  // 蓝球
+  const blueOrnaments = createOrnamentGroup(particleConfig.blueOrnaments);
+  if (blueOrnaments) mainGroup.add(blueOrnaments);
+
   return mainGroup;
 }
 

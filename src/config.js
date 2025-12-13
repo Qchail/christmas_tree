@@ -136,6 +136,18 @@ export const particleConfig = {
     emissiveIntensity: 1.5 // 自发光强度 (红色比较暗，需要更高的强度)
   },
 
+  // ========== 蓝色小球装饰 ==========
+  blueOrnaments: {
+    enabled: true,
+    count: 10,           // 数量 (与红色小球一致)
+    radius: 0.25,        // 半径 (与红色小球一致)
+    color: 0x0080FF,     // 颜色 (蓝色)
+    metalness: 0.9,      // 金属度
+    roughness: 0.1,      // 粗糙度
+    emissive: 0x0080FF,  // 自发光颜色 (蓝色)
+    emissiveIntensity: 1.5 // 自发光强度
+  },
+
   // ========== 螺旋光带参数 ==========
   spiralRibbon: {
     enabled: true,        // 是否启用螺旋光带
