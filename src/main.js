@@ -2531,54 +2531,17 @@ function updateScatterAnimation() {
     }
 
     // 更新相机位置（画面缩放和视角变化）
-    if (originalPositions.camera && originalPositions.cameraSpherical) {
+    // 使用动态计算的 Start/Target 进行插值
+    if (cameraAnimationState.targetRadius > 0) {
+      // 相机动画始终是从 Start 到 Target (进度 0 -> 1)
+      const currentRadius = cameraAnimationState.startRadius + (cameraAnimationState.targetRadius - cameraAnimationState.startRadius) * easedScatterProgress;
+      const currentPhi = cameraAnimationState.startPhi + (cameraAnimationState.targetPhi - cameraAnimationState.startPhi) * easedScatterProgress;
+
       const target = controls.target;
-
-      // 1. 获取原始球坐标参数
-      const originalRadius = originalPositions.cameraSpherical.radius;
-      const originalPhi = originalPositions.cameraSpherical.phi;
-
-      // 2. 计算目标球坐标参数
-      const targetY = particleConfig.camera.scatteredY || 1.5;
-      const targetPhiDegree = particleConfig.camera.scatteredPolarAngle || 120;
-      const targetPhi = targetPhiDegree * Math.PI / 180;
-
-      // 根据目标 Y 和目标 Phi 反推目标 Radius
-      // cameraY = target.y + radius * cos(phi)
-      // radius = (cameraY - target.y) / cos(phi)
-      let targetRadius;
-      const cosTargetPhi = Math.cos(targetPhi);
-
-      // 避免除以接近0的数
-      if (Math.abs(cosTargetPhi) < 0.001) {
-        // 如果目标是水平视角(90度)，使用配置的 scatteredScale 来决定距离
-        targetRadius = originalRadius * (particleConfig.camera.scatteredScale || 1.5);
-      } else {
-        targetRadius = (targetY - target.y) / cosTargetPhi;
-        // 确保半径为正 (如果算出来是负的，说明目标Y和角度在几何上需要反向，OrbitControls会自动处理，但我们需要正确的半径长度)
-        targetRadius = Math.abs(targetRadius);
-      }
-
-      // 3. 插值计算当前的球坐标参数
-      let currentRadius, currentPhi;
-
-      if (isScattered) {
-        // 散开：从原始状态过渡到目标状态
-        currentRadius = originalRadius + (targetRadius - originalRadius) * easedScatterProgress;
-        currentPhi = originalPhi + (targetPhi - originalPhi) * easedScatterProgress;
-      } else {
-        // 聚集：从目标状态恢复到原始状态
-        currentRadius = targetRadius + (originalRadius - targetRadius) * easedScatterProgress;
-        currentPhi = targetPhi + (originalPhi - targetPhi) * easedScatterProgress;
-      }
-
-      // 4. 获取当前的方位角 (由 OrbitControls 自动旋转控制)
+      // 获取当前的方位角 (由 OrbitControls 自动旋转控制)
       const currentTheta = controls.getAzimuthalAngle();
 
-      // 5. 将球坐标转换为笛卡尔坐标并设置相机位置
-      // x = target.x + radius * sin(phi) * sin(theta)
-      // y = target.y + radius * cos(phi)
-      // z = target.z + radius * sin(phi) * cos(theta)
+      // 将球坐标转换为笛卡尔坐标并设置相机位置
       const sinPhi = Math.sin(currentPhi);
       const cosPhi = Math.cos(currentPhi);
       const sinTheta = Math.sin(currentTheta);
@@ -2587,7 +2550,7 @@ function updateScatterAnimation() {
       camera.position.set(
         target.x + currentRadius * sinPhi * sinTheta,
         target.y + currentRadius * cosPhi,
-        target.x + currentRadius * sinPhi * cosTheta
+        target.z + currentRadius * sinPhi * cosTheta
       );
     }
   }
@@ -2637,12 +2600,24 @@ function updateScatterAnimation() {
         }
       });
     }
-    // 确保相机位置状态正确 (移除旧逻辑，完全依赖插值结果，避免与动态旋转冲突)
-    /*
-    if (originalPositions.camera) {
-       // ... 旧逻辑已移除 ...
+    // 确保相机位置状态正确（聚拢时恢复到原始位置）
+    if (!isScattered && originalPositions.cameraSpherical) {
+      const target = controls.target;
+      const currentTheta = controls.getAzimuthalAngle();
+      const radius = originalPositions.cameraSpherical.radius;
+      const phi = originalPositions.cameraSpherical.phi;
+
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+      const sinTheta = Math.sin(currentTheta);
+      const cosTheta = Math.cos(currentTheta);
+
+      camera.position.set(
+        target.x + radius * sinPhi * sinTheta,
+        target.y + radius * cosPhi,
+        target.z + radius * sinPhi * cosTheta
+      );
     }
-    */
     // 确保光源位置在动画结束时被正确更新
     if (starLight && star) {
       starLight.position.copy(star.position);
@@ -2653,34 +2628,101 @@ function updateScatterAnimation() {
   }
 }
 
+// 相机动画状态，用于动态插值
+let cameraAnimationState = {
+  startRadius: 0,
+  startPhi: 0,
+  targetRadius: 0,
+  targetPhi: 0
+};
+
 // 切换散开/聚集状态
 function toggleScatter() {
   const now = Date.now();
 
-  // 如果正在动画中，允许打断并反转
-  if (isAnimating) {
-    // 计算当前动画已进行的时间
-    const elapsed = now - animationStartTime;
-    const effectiveElapsed = Math.min(elapsed, scatterDuration);
+  // 记录当前相机状态，作为动画起点
+  // 这样无论何时打断或开始，都从当前视觉位置开始，避免跳变
+  const currentOffset = new THREE.Vector3().copy(camera.position).sub(controls.target);
+  const currentSpherical = new THREE.Spherical().setFromVector3(currentOffset);
 
-    // 反转时间：让动画从"当前进度的对立面"继续
-    // 例如：如果散开动画进行了30%（即还剩70%未完成），反转为聚拢时，
-    // 我们希望聚拢动画表现为"已经进行了70%"（即还剩30%回到原点）
-    // 这样视觉位置就是连续的，且会从当前位置往回缩
-    const newElapsed = scatterDuration - effectiveElapsed;
+  // 限制 Phi 防止极点问题
+  currentSpherical.makeSafe();
 
-    animationStartTime = now - newElapsed;
-    isScattered = !isScattered;
-    return;
+  cameraAnimationState.startRadius = currentSpherical.radius;
+  cameraAnimationState.startPhi = currentSpherical.phi;
+
+  // 计算目标状态
+  // 1. 获取散开的目标位置配置
+  const targetY = particleConfig.camera.scatteredY || 1.5;
+  const targetPhiDegree = particleConfig.camera.scatteredPolarAngle || 120;
+  const targetPhiRad = targetPhiDegree * Math.PI / 180;
+
+  // 反推 Radius
+  // cameraY = target.y + radius * cos(phi)
+  // radius = (cameraY - target.y) / cos(phi)
+  let scatterTargetRadius;
+  const cosTargetPhi = Math.cos(targetPhiRad);
+  if (Math.abs(cosTargetPhi) < 0.001) {
+    scatterTargetRadius = (originalPositions.cameraSpherical ? originalPositions.cameraSpherical.radius : 10) * (particleConfig.camera.scatteredScale || 1.5);
+  } else {
+    scatterTargetRadius = Math.abs((targetY - controls.target.y) / cosTargetPhi);
   }
 
-  isScattered = !isScattered;
-  isAnimating = true;
-  animationStartTime = now;
+  // 如果正在动画中，允许打断并反转
+  if (isAnimating) {
+    const elapsed = now - animationStartTime;
+    const effectiveElapsed = Math.min(elapsed, scatterDuration);
+    // 反转时间
+    const newElapsed = scatterDuration - effectiveElapsed;
+    animationStartTime = now - newElapsed;
+    isScattered = !isScattered;
+
+    // 注意：如果是打断，起点其实也变了（变成了刚才那一帧的位置）
+    // 但为了保证插值曲线的连贯性，如果只是反转时间，我们应该保持 start 和 target 不变？
+    // 不，"时间反转"技巧假设的是 start 和 target 是固定的。
+    // 但现在我们的 target 是动态的（聚合时 target = start）。
+    // 如果聚合时 target = start，那么动画就没有位移。
+    // 所以这里的逻辑需要调整：
+
+    // 如果是打断，简单的"时间反转"可能不再适用，因为"聚合"的目标变了（变成了不动）。
+    // 之前"聚合"的目标是"回到原点"。现在是"不动"。
+    // 如果我们想"立即不动"，那动画就该立即结束？
+    // 或者是平滑地减速到不动？
+
+    // 既然用户要求聚合时"不动"，那么聚合动画对于相机来说就是 no-op。
+    // 所以如果是散开 -> 聚合：相机应该停在当前位置。
+    // 如果是聚合 -> 散开：相机应该从当前位置（此时可能在半路）移动到散开目标。
+
+    // 所以：无论是否打断，我们都重新设定 Start 和 Target，并重置时间。
+    // 这样最简单且正确。
+    // 只要 Start 是 Current，就不会有跳变。
+    isAnimating = true;
+    animationStartTime = now;
+  } else {
+    isScattered = !isScattered;
+    isAnimating = true;
+    animationStartTime = now;
+  }
+
+  // 设置目标状态
+  if (isScattered) {
+    // 散开：目标是配置的散开位置
+    cameraAnimationState.targetRadius = scatterTargetRadius;
+    cameraAnimationState.targetPhi = targetPhiRad;
+  } else {
+    // 聚合：目标是恢复到最初的状态
+    if (originalPositions.cameraSpherical) {
+      cameraAnimationState.targetRadius = originalPositions.cameraSpherical.radius;
+      cameraAnimationState.targetPhi = originalPositions.cameraSpherical.phi;
+    } else {
+      // 如果没有保存原始位置，则保持当前位置
+      cameraAnimationState.targetRadius = cameraAnimationState.startRadius;
+      cameraAnimationState.targetPhi = cameraAnimationState.startPhi;
+    }
+  }
 
   if (isScattered) {
     // 散开：如果还没有散开位置，则生成新的随机位置
-    // 如果已经有散开位置（从上次散开保存的），则使用保存的位置
     if (!scatteredPositions.particleCone || !scatteredPositions.star) {
       generateScatteredPositions();
     }
@@ -2936,6 +2978,34 @@ document.addEventListener('DOMContentLoaded', () => {
       onIndexPointingEnd: () => {
         // 取消单指手势：模拟按下 Esc 键关闭照片
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      },
+      onZoom: (scale) => {
+        // 根据手掌大小变化缩放画面
+        if (!controls) return;
+
+        // 调整灵敏度
+        const zoomSpeed = 0.5;
+        const factor = Math.pow(scale, zoomSpeed);
+
+        // 手动计算缩放 (改变相机与目标的距离)
+        // 获取当前相机相对于目标的偏移向量
+        const offset = new THREE.Vector3();
+        offset.copy(camera.position).sub(controls.target);
+
+        // 获取当前距离
+        const radius = offset.length();
+
+        // 计算新距离：手变大(scale > 1) -> 距离变小; 手变小(scale < 1) -> 距离变大
+        let newRadius = radius / factor;
+
+        // 限制缩放范围 (使用 controls 的配置)
+        newRadius = Math.max(controls.minDistance, Math.min(controls.maxDistance, newRadius));
+
+        // 应用新距离
+        offset.setLength(newRadius);
+        camera.position.copy(controls.target).add(offset);
+
+        controls.update();
       }
     });
 

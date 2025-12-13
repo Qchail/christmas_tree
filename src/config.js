@@ -167,7 +167,7 @@ export const particleConfig = {
     // 动画时长参数（单位：毫秒）
     animation: {
       initialFadeDuration: 1000,  // 初始光带出现动画时长（页面加载时）
-      fadeDuration: 500          // 散开/聚集时光带消失和出现的动画时长
+      fadeDuration: 1000          // 散开/聚集时光带消失和出现的动画时长
     }
   },
 

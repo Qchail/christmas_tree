@@ -13,7 +13,8 @@ export class GestureController {
       onPinchStart: options.onPinchStart || (() => false),
       onPinchEnd: options.onPinchEnd || (() => { }),
       onIndexPointing: options.onIndexPointing || (() => { }),
-      onIndexPointingEnd: options.onIndexPointingEnd || (() => { })
+      onIndexPointingEnd: options.onIndexPointingEnd || (() => { }),
+      onZoom: options.onZoom || (() => { })
     };
 
     this.hands = null;
@@ -31,6 +32,7 @@ export class GestureController {
 
     // 手势状态追踪
     this.lastGesture = 'NONE'; // NONE, FIST, OPEN
+    this.lastPalmSize = 0; // 用于缩放计算
 
     this.init();
   }
@@ -212,6 +214,26 @@ export class GestureController {
 
     // 4. 识别手势状态 (握拳/伸掌)
     this.detectAndTriggerGesture(landmarks);
+
+    // 5. 缩放检测
+    this.detectZoom(landmarks);
+  }
+
+  detectZoom(landmarks) {
+    // 使用手腕(0)到中指根部(9)的距离作为手掌大小参考
+    const palmSize = this.calculateDistance(landmarks[0], landmarks[9]);
+
+    if (this.lastPalmSize > 0) {
+      const scale = palmSize / this.lastPalmSize;
+
+      // 设置阈值防止抖动 (变化超过 1% 才触发)
+      if (Math.abs(scale - 1) > 0.01) {
+        this.callbacks.onZoom(scale);
+      }
+    }
+
+    // 平滑更新上一帧大小
+    this.lastPalmSize = this.lastPalmSize === 0 ? palmSize : (this.lastPalmSize * 0.9 + palmSize * 0.1);
   }
 
   detectAndTriggerGesture(landmarks) {
