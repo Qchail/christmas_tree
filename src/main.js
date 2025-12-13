@@ -219,7 +219,16 @@ function createParticleCone() {
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         
         // 从配置读取缩放因子
-        gl_PointSize = size * (pointSizeScale / -mvPosition.z);
+        // 防止粒子在相机后面或太近时产生异常大小
+        float depth = -mvPosition.z;
+        if (depth > 0.0) {
+          gl_PointSize = size * (pointSizeScale / depth);
+          // 限制点大小，防止过大导致渲染问题
+          gl_PointSize = min(gl_PointSize, 2000.0);
+        } else {
+          // 如果粒子在相机后面，设置点大小为0（不渲染）
+          gl_PointSize = 0.0;
+        }
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
@@ -266,7 +275,8 @@ function createParticleCone() {
         vec3 normal = normalize(vec3(coord * 2.0, sqrt(1.0 - min(dot(coord, coord) * 4.0, 1.0))));
         
         // 完全由内向外发光，不使用环境光和光照
-        vec3 finalColor = vec3(0.0);
+        // 初始化为一个很小的值而不是0，避免纯黑色
+        vec3 finalColor = vec3(0.001);
         
         // 计算来自五角星光源的光照
         vec3 lightContribution = vec3(0.0);
@@ -584,7 +594,14 @@ function createSnowSystem() {
       void main() {
         vOpacity = opacity;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (pointSizeScale / -mvPosition.z);
+        // 防止粒子在相机后面或太近时产生异常大小
+        float depth = -mvPosition.z;
+        if (depth > 0.0) {
+          gl_PointSize = size * (pointSizeScale / depth);
+          gl_PointSize = min(gl_PointSize, 2000.0);
+        } else {
+          gl_PointSize = 0.0;
+        }
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
@@ -665,7 +682,14 @@ function createGoldFoilSystem() {
       void main() {
         vPhase = phase;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (pointSizeScale / -mvPosition.z);
+        // 防止粒子在相机后面或太近时产生异常大小
+        float depth = -mvPosition.z;
+        if (depth > 0.0) {
+          gl_PointSize = size * (pointSizeScale / depth);
+          gl_PointSize = min(gl_PointSize, 2000.0);
+        } else {
+          gl_PointSize = 0.0;
+        }
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
