@@ -1924,11 +1924,18 @@ const overlay = document.getElementById('photo-overlay');
 const overlayImg = document.getElementById('photo-img');
 const closeBtn = document.getElementById('close-btn');
 let isPhotoLoading = false; // 标记图片是否正在加载
+let closeOverlayTimeout = null; // 用于存储关闭动画的定时器 ID
 
 function openPhotoOverlay(src) {
   if (!src || typeof src !== 'string' || src.length === 0) {
     console.warn('无效的图片源:', src);
     return;
+  }
+
+  // 如果有正在进行的关闭操作（延迟清空 src），立即取消
+  if (closeOverlayTimeout) {
+    clearTimeout(closeOverlayTimeout);
+    closeOverlayTimeout = null;
   }
 
   // 如果正在加载图片，先停止当前加载
@@ -1975,8 +1982,12 @@ function closePhotoOverlay() {
   overlayImg.onload = null;
   overlayImg.onerror = null;
   // 延迟清空图片，避免视觉跳动
-  setTimeout(() => {
+  if (closeOverlayTimeout) {
+    clearTimeout(closeOverlayTimeout);
+  }
+  closeOverlayTimeout = setTimeout(() => {
     overlayImg.src = '';
+    closeOverlayTimeout = null;
   }, 500);
   // 恢复自动旋转
   controls.autoRotate = true;

@@ -338,11 +338,46 @@
         left: 15px;
       }
     }
+
+    /* 使用说明样式 */
+    #instructions {
+      position: fixed;
+      bottom: 24px;
+      left: 36px;
+      color: #ffd700;
+      font-size: 14px;
+      line-height: 1.8;
+      z-index: 100;
+      pointer-events: none;
+      user-select: none;
+      font-family: Arial, sans-serif;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+    }
+
+    #instructions .instruction-item {
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 768px) {
+      #instructions {
+        font-size: 12px;
+        bottom: 15px;
+        left: 15px;
+        line-height: 1.6;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div id="merry-christmas">MERRY CHRISTMAS</div>
+  <div id="instructions">
+    <div class="instruction-item">① 点击鼠标左键拖动旋转画面</div>
+    <div class="instruction-item">② 按住空格键平移画面</div>
+    <div class="instruction-item">③ 按下 S 键随机放大一张照片</div>
+    <div class="instruction-item">④ 按下 Esc 键关闭放大的照片</div>
+    <div class="instruction-item">⑤ 按住 Enter 键打散/聚拢圣诞树</div>
+  </div>
   <div id="canvas-container"></div>
 
   <!-- 上传按钮 -->
