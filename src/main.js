@@ -971,9 +971,16 @@ function createGoldFoilSystem() {
   const sizes = new Float32Array(count);
   const phases = new Float32Array(count); // 用于控制闪烁相位的随机数
   const drifts = new Float32Array(count);
+  const colors = new Float32Array(count * 3);
 
   const range = particleConfig.goldFoil.range;
   const height = particleConfig.goldFoil.height;
+  const greenRatio = particleConfig.goldFoil.greenRatio || 0.0;
+  const redRatio = particleConfig.goldFoil.redRatio || 0.0;
+
+  const goldColor = new THREE.Color(particleConfig.goldFoil.color);
+  const greenColor = new THREE.Color(particleConfig.goldFoil.greenColor || 0x228B22);
+  const redColor = new THREE.Color(particleConfig.goldFoil.redColor || 0x8B0000);
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3;
@@ -986,6 +993,22 @@ function createGoldFoilSystem() {
     sizes[i] = particleConfig.goldFoil.size.min + Math.random() * (particleConfig.goldFoil.size.max - particleConfig.goldFoil.size.min);
     phases[i] = Math.random() * Math.PI * 2;
     drifts[i] = Math.random() * Math.PI * 2;
+
+    // 设置颜色
+    const rand = Math.random();
+    if (rand < greenRatio) {
+      colors[i3] = greenColor.r;
+      colors[i3 + 1] = greenColor.g;
+      colors[i3 + 2] = greenColor.b;
+    } else if (rand < greenRatio + redRatio) {
+      colors[i3] = redColor.r;
+      colors[i3 + 1] = redColor.g;
+      colors[i3 + 2] = redColor.b;
+    } else {
+      colors[i3] = goldColor.r;
+      colors[i3 + 1] = goldColor.g;
+      colors[i3 + 2] = goldColor.b;
+    }
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -993,22 +1016,25 @@ function createGoldFoilSystem() {
   geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
   geometry.setAttribute('drift', new THREE.BufferAttribute(drifts, 1));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
-      color: { value: new THREE.Color(particleConfig.goldFoil.color) },
       time: { value: 0 },
       pointSizeScale: { value: 200.0 }
     },
     vertexShader: `
       attribute float size;
       attribute float phase;
+      attribute vec3 color;
       uniform float pointSizeScale;
       uniform float time;
       varying float vPhase;
+      varying vec3 vColor;
       
       void main() {
         vPhase = phase;
+        vColor = color;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         // 防止粒子在相机后面或太近时产生异常大小
         float depth = -mvPosition.z;
@@ -1022,7 +1048,7 @@ function createGoldFoilSystem() {
       }
     `,
     fragmentShader: `
-      uniform vec3 color;
+      varying vec3 vColor;
       uniform float time;
       varying float vPhase;
       
@@ -1061,15 +1087,15 @@ function createGoldFoilSystem() {
         // 基础闪烁
         float flash = sin(time * 8.0 + vPhase * 3.0);
         
-        vec3 finalColor = color;
+        vec3 finalColor = vColor;
         
         // 强烈的高光时刻
         if (specular > 0.6 || flash > 0.5) {
-           finalColor = mix(color, vec3(1.0), 0.9);
+           finalColor = mix(vColor, vec3(1.0), 0.9);
         } else {
            // 根据旋转角度产生的明暗变化
            float shading = 0.6 + 0.4 * max(abs(rotX), abs(rotY));
-           finalColor = color * shading;
+           finalColor = vColor * shading;
         }
         
         gl_FragColor = vec4(finalColor, 1.0);

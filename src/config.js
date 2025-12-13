@@ -4,7 +4,7 @@ export const particleConfig = {
   cone: {
     height: 8,           // 圆锥体高度
     baseRadius: 5,       // 底部半径
-    particleCount: 3000  // 粒子数量（增加以产生更多绿色粒子）
+    particleCount: 5000  // 粒子数量（增加以产生更多绿色粒子）
   },
 
   // ========== 小球大小参数 ==========
@@ -61,7 +61,7 @@ export const particleConfig = {
     cornerRadius: 0.02,  // 五角星角的圆角半径（数值越大圆角越明显，建议0.02-0.1）
     positionOffset: {     // 位置偏移
       x: 0,               // X 轴偏移
-      y: 0.5,               // Y 轴偏移（高度）
+      y: 0.75,               // Y 轴偏移（高度）
       z: -0.15              // Z 轴偏移（前后位置，正值向前）
     },
     // 光源参数
@@ -77,12 +77,12 @@ export const particleConfig = {
   // ========== 雪花参数 ==========
   snow: {
     enabled: true,        // 是否启用雪花
-    count: 3000,          // 雪花数量
+    count: 10000,          // 雪花数量
     color: 0xFFFFFF,      // 雪花颜色
     range: 30.0,          // 雪花分布范围（xz平面大小）
     height: 30.0,         // 雪花分布高度
     size: {
-      min: 0.5,          // 最小大小
+      min: 0.4,          // 最小大小
       max: 0.8           // 最大大小
     },
     speed: {
@@ -98,8 +98,12 @@ export const particleConfig = {
   // ========== 金箔碎片参数 ==========
   goldFoil: {
     enabled: true,
-    count: 300,          // 数量
-    color: 0xFFD700,     // 金色
+    count: 800,          // 数量
+    color: 0xFFFF00,     // 黄色
+    greenColor: 0x228B22, // 绿色
+    greenRatio: 0.3,     // 绿色金箔比例
+    redColor: 0xFF0000,  // 红色
+    redRatio: 0.2,       // 红色金箔比例
     range: 20.0,         // 分布范围
     height: 20.0,        // 分布高度
     size: {
@@ -182,7 +186,7 @@ export const particleConfig = {
     autoRotate: {
       enabled: true,           // 是否启用自动旋转
       normalSpeed: -1.5,       // 正常旋转速度（负值实现画面逆时针旋转，绝对值越大越快）
-      scatteredSpeed: -5      // 散开时的旋转速度（元素散开时加快旋转）
+      scatteredSpeed: -4.5      // 散开时的旋转速度（元素散开时加快旋转）
     },
     scatteredScale: 1.5,       // 散开时的画面缩放倍数（元素散开时整体画面缩小）
     scatteredY: 1.2,          // 散开时的相机 Y 坐标
