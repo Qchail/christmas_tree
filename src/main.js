@@ -90,6 +90,17 @@ class PhotoManager {
     }
   }
 
+  // 清空所有照片
+  clearAllPhotos() {
+    this.photos = [];
+    this.savePhotos();
+    this.updateUI();
+    // 重新创建照片卡片（延迟执行，确保函数已定义）
+    if (window.recreatePhotoCards) {
+      window.recreatePhotoCards();
+    }
+  }
+
   // 获取所有照片
   getPhotos() {
     return this.photos;
@@ -142,6 +153,12 @@ class PhotoManager {
       countElement.textContent = this.photos.length;
     }
 
+    // 更新清空按钮状态
+    const clearAllBtn = document.getElementById('clear-all-btn');
+    if (clearAllBtn) {
+      clearAllBtn.disabled = this.photos.length === 0;
+    }
+
     // 更新照片网格
     this.updatePhotoGrid();
   }
@@ -186,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadBtn = document.getElementById('upload-btn');
   const photoManagerPanel = document.getElementById('photo-manager');
   const managerClose = document.getElementById('manager-close');
+  const clearAllBtn = document.getElementById('clear-all-btn');
   const uploadArea = document.getElementById('upload-area');
   const fileInput = document.getElementById('file-input');
 
@@ -197,6 +215,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // 关闭照片管理面板
   managerClose?.addEventListener('click', () => {
     photoManagerPanel.classList.remove('active');
+  });
+
+  // 清空所有照片
+  clearAllBtn?.addEventListener('click', () => {
+    if (photoManager.photos.length === 0) {
+      return;
+    }
+    if (confirm(`确定要清空所有 ${photoManager.photos.length} 张照片吗？此操作不可恢复！`)) {
+      photoManager.clearAllPhotos();
+    }
   });
 
   // 点击上传区域
