@@ -324,8 +324,10 @@ controls.maxDistance = 30;
 controls.target.set(0, 4, 0);
 
 // 开启自动旋转
-controls.autoRotate = true;
-controls.autoRotateSpeed = -1.2; // 负值实现画面逆时针旋转（相机顺时针公转），数值越小越慢
+controls.autoRotate = particleConfig.camera.autoRotate.enabled;
+const originalAutoRotateSpeed = particleConfig.camera.autoRotate.normalSpeed; // 原始旋转速度
+const scatteredAutoRotateSpeed = particleConfig.camera.autoRotate.scatteredSpeed; // 散开时的旋转速度（更快）
+controls.autoRotateSpeed = originalAutoRotateSpeed; // 负值实现画面逆时针旋转（相机顺时针公转），绝对值越大越快
 
 // 保存原始的鼠标按钮配置
 // OrbitControls 中：0 = ROTATE, 1 = DOLLY, 2 = PAN
@@ -2228,6 +2230,9 @@ function updateScatterAnimation() {
     // 如果散开动画结束，保存当前实际位置（为下次聚集做准备）
     if (isScattered) {
       saveCurrentScatteredPositions();
+    } else {
+      // 聚集动画结束：恢复原始旋转速度
+      controls.autoRotateSpeed = originalAutoRotateSpeed;
     }
     // 确保光带状态正确
     if (spiralRibbon) {
@@ -2257,6 +2262,8 @@ function toggleScatter() {
   animationStartTime = Date.now();
 
   if (isScattered) {
+    // 散开：加快画面旋转速度
+    controls.autoRotateSpeed = scatteredAutoRotateSpeed;
     // 散开：如果还没有散开位置，则生成新的随机位置
     // 如果已经有散开位置（从上次散开保存的），则使用保存的位置
     if (!scatteredPositions.particleCone || !scatteredPositions.star) {

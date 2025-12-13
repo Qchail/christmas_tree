@@ -174,6 +174,15 @@ export const particleConfig = {
     cardWidth: 0.5,      // 卡片宽度
     cardHeight: 0.65,     // 卡片高度
     photoSize: 0.5       // 照片大小
+  },
+
+  // ========== 相机旋转参数 ==========
+  camera: {
+    autoRotate: {
+      enabled: true,           // 是否启用自动旋转
+      normalSpeed: -1.5,       // 正常旋转速度（负值实现画面逆时针旋转，绝对值越大越快）
+      scatteredSpeed: -3.5      // 散开时的旋转速度（元素散开时加快旋转）
+    }
   }
 };
 
