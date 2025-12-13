@@ -941,7 +941,7 @@ function createSpiralRibbon() {
       
       void main() {
         // 计算边缘发光（基于法线和视角）- 使用更强的菲涅尔效果
-        float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.5);
+        float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.2);
         fresnel = smoothstep(0.0, 1.0, fresnel);
         
         // 多层闪光效果 - 创造奢华闪光感
@@ -967,11 +967,11 @@ function createSpiralRibbon() {
         
         // 边缘渐变（让丝带边缘更亮，创造扁平丝带感）
         float edgeGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
-        edgeGlow = pow(edgeGlow, 0.3); // 更明显的边缘发光
+        edgeGlow = pow(edgeGlow, 0.2); // 更明显的边缘发光
         
         // 中心高光带（模拟丝带中心的反光）
         float centerGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
-        centerGlow = pow(centerGlow, 2.0);
+        centerGlow = pow(centerGlow, 1.5);
         
         // 高级银白色基础色（带微妙的冷色调）
         vec3 silverBase = baseColor;
@@ -981,33 +981,33 @@ function createSpiralRibbon() {
         // 构建最终颜色
         vec3 finalColor = premiumSilver;
         
-        // 添加强烈的边缘辉光
-        finalColor += glowColor * glowIntensity * fresnel * 1.5;
+        // 添加强烈的边缘辉光（增强）
+        finalColor += glowColor * glowIntensity * fresnel * 2.5;
         
-        // 添加中心高光带
-        finalColor += glowColor * centerGlow * 0.8;
+        // 添加中心高光带（增强）
+        finalColor += glowColor * centerGlow * 1.2;
         
-        // 添加边缘发光
-        finalColor += glowColor * edgeGlow * 0.6;
+        // 添加边缘发光（增强）
+        finalColor += glowColor * edgeGlow * 1.0;
         
         // 添加奢华闪光效果（使用纯白色闪光）
         vec3 sparkleColor = vec3(1.0, 1.0, 1.0); // 纯白色闪光
-        finalColor += sparkleColor * sparkleIntensity * totalSparkle * 2.0;
+        finalColor += sparkleColor * sparkleIntensity * totalSparkle * 2.5;
         
-        // 添加菲涅尔边缘闪光
-        finalColor += sparkleColor * fresnel * 0.8;
+        // 添加菲涅尔边缘闪光（增强）
+        finalColor += sparkleColor * fresnel * 1.2;
         
         // 整体亮度增强，创造高级感
-        finalColor *= 1.5;
+        finalColor *= 1.8;
         
         // 添加微妙的颜色变化（根据视角）
-        float colorShift = fresnel * 0.2;
+        float colorShift = fresnel * 0.3;
         finalColor = mix(finalColor, vec3(0.98, 0.99, 1.0), colorShift);
         
         // 计算透明度（中心更不透明，边缘更透明）
-        float alpha = 0.85 + fresnel * 0.15;
-        alpha *= (0.8 + edgeGlow * 0.2);
-        alpha = min(alpha, 0.95); // 限制最大透明度，保持实体感
+        float alpha = 0.9 + fresnel * 0.1;
+        alpha *= (0.85 + edgeGlow * 0.15);
+        alpha = min(alpha, 0.98); // 限制最大透明度，保持实体感
         
         gl_FragColor = vec4(finalColor, alpha);
       }
@@ -1019,7 +1019,95 @@ function createSpiralRibbon() {
   });
 
   const ribbon = new THREE.Mesh(geometry, material);
-  return ribbon;
+
+  // 创建外层辉光光晕（更大的几何体，专门用于产生辉光效果）
+  const glowGeometry = new THREE.TubeGeometry(
+    curve,
+    segments,
+    config.width * 2.5, // 更大的宽度，产生光晕
+    2,
+    false
+  );
+
+  // 创建辉光材质（更透明，专门用于外发光）
+  const glowMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      glowColor: { value: new THREE.Color(config.glowColor) },
+      glowIntensity: { value: config.glowIntensity * 0.6 } // 外层光晕强度稍低
+    },
+    vertexShader: `
+      varying vec3 vWorldPosition;
+      varying vec3 vNormal;
+      varying vec2 vUv;
+      varying vec3 vViewDirection;
+      
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vViewDirection = normalize(cameraPosition - vWorldPosition);
+        
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      uniform vec3 glowColor;
+      uniform float glowIntensity;
+      
+      varying vec3 vWorldPosition;
+      varying vec3 vNormal;
+      varying vec2 vUv;
+      varying vec3 vViewDirection;
+      
+      void main() {
+        // 计算边缘距离（从中心到边缘）
+        float distFromCenter = abs(vUv.y - 0.5) * 2.0; // 0 到 1
+        
+        // 边缘衰减（距离中心越远，越透明）
+        float edgeFade = 1.0 - smoothstep(0.0, 1.0, distFromCenter);
+        edgeFade = pow(edgeFade, 1.5); // 更平滑的衰减
+        
+        // 菲涅尔效果（边缘更亮）
+        float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.5);
+        fresnel = smoothstep(0.0, 1.0, fresnel);
+        
+        // 沿长度方向的波动效果
+        float wave = sin(vUv.x * 20.0 + time * 2.0) * 0.5 + 0.5;
+        wave = pow(wave, 3.0);
+        
+        // 构建辉光颜色（纯白色辉光）
+        vec3 finalGlow = glowColor * glowIntensity;
+        
+        // 结合所有效果
+        float finalAlpha = edgeFade * (0.3 + fresnel * 0.4 + wave * 0.3);
+        finalAlpha = min(finalAlpha, 0.4); // 限制最大透明度，保持柔和
+        
+        // 增强边缘亮度
+        finalGlow *= (1.0 + fresnel * 0.5);
+        
+        gl_FragColor = vec4(finalGlow, finalAlpha);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending, // 使用加法混合
+    depthWrite: false,
+    depthTest: true
+  });
+
+  const glowLayer = new THREE.Mesh(glowGeometry, glowMaterial);
+
+  // 创建一个组来包含主丝带和辉光层
+  const ribbonGroup = new THREE.Group();
+  ribbonGroup.add(glowLayer); // 先添加辉光层（在背景）
+  ribbonGroup.add(ribbon); // 再添加主丝带（在前景）
+
+  return ribbonGroup;
 }
 
 // 创建粒子圆锥体
@@ -1185,8 +1273,13 @@ function animate() {
   }
 
   // 更新螺旋光带的时间（用于闪光动画）
-  if (spiralRibbon && spiralRibbon.material instanceof THREE.ShaderMaterial) {
-    spiralRibbon.material.uniforms.time.value += 0.016; // 约60fps的时间增量
+  if (spiralRibbon && spiralRibbon instanceof THREE.Group) {
+    // 更新组内所有子对象的时间
+    spiralRibbon.children.forEach((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.ShaderMaterial) {
+        child.material.uniforms.time.value += 0.016; // 约60fps的时间增量
+      }
+    });
   }
 
   controls.update();
