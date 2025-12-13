@@ -2729,6 +2729,60 @@ function toggleScatter() {
   }
 }
 
+// 恢复相机到初始状态
+function resetCameraToInitial() {
+  if (!originalPositions.cameraSpherical) {
+    console.warn('初始相机位置未保存，无法恢复');
+    return;
+  }
+
+  const target = controls.target;
+  const radius = originalPositions.cameraSpherical.radius;
+  const phi = originalPositions.cameraSpherical.phi;
+
+  // 获取当前的方位角（保持当前的水平旋转角度）
+  const currentTheta = controls.getAzimuthalAngle();
+
+  // 将球坐标转换为笛卡尔坐标
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const sinTheta = Math.sin(currentTheta);
+  const cosTheta = Math.cos(currentTheta);
+
+  // 计算目标位置
+  const targetPosition = new THREE.Vector3(
+    target.x + radius * sinPhi * sinTheta,
+    target.y + radius * cosPhi,
+    target.z + radius * sinPhi * cosTheta
+  );
+
+  // 平滑过渡到目标位置
+  // 使用 OrbitControls 的平滑更新
+  const startPosition = camera.position.clone();
+  const duration = 1000; // 1秒过渡时间
+  const startTime = Date.now();
+
+  function animateCamera() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easedProgress = easeInOutCubic(progress);
+
+    // 插值相机位置
+    camera.position.lerpVectors(startPosition, targetPosition, easedProgress);
+    controls.update();
+
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera);
+    } else {
+      // 确保最终位置准确
+      camera.position.copy(targetPosition);
+      controls.update();
+    }
+  }
+
+  animateCamera();
+}
+
 // 初始化：保存原始位置
 setTimeout(() => {
   saveOriginalPositions();
@@ -2793,6 +2847,11 @@ window.addEventListener('keydown', (event) => {
     if (overlay && overlay.classList.contains('active')) {
       closePhotoOverlay();
     }
+  }
+
+  // 监听 R 键，恢复相机到初始状态
+  if ((event.key === 'r' || event.key === 'R') && !event.repeat) {
+    resetCameraToInitial();
   }
 });
 
