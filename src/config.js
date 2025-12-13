@@ -183,6 +183,12 @@ export const particleConfig = {
       normalSpeed: -1.5,       // 正常旋转速度（负值实现画面逆时针旋转，绝对值越大越快）
       scatteredSpeed: -3.5      // 散开时的旋转速度（元素散开时加快旋转）
     }
+  },
+
+  // ========== 散开/聚集动画参数 ==========
+  scatterAnimation: {
+    scatterRange: 45,          // 散开范围（X和Z轴方向，数值越大散开越远）
+    scatterHeight: 30          // 散开高度范围（Y轴方向，数值越大散开越高）
   }
 };
 

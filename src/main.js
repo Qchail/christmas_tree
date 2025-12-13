@@ -1917,28 +1917,39 @@ function saveOriginalPositions() {
   }
 
   // 保存装饰球位置（包括光晕）
+  // ornaments 是一个主组，包含三个子组（goldOrnaments、redOrnaments、blueOrnaments）
+  // 每个子组直接包含多个 mesh 和 sprite（成对出现）
   if (ornaments) {
     originalPositions.ornaments = [];
-    // 装饰球组的结构：每个装饰球是一个group，包含mesh和sprite
-    ornaments.children.forEach((group) => {
-      if (group instanceof THREE.Group) {
-        let mesh = null;
-        let glow = null;
-        group.children.forEach((child) => {
+    // 遍历主组的每个子组（金、红、蓝）
+    ornaments.children.forEach((colorGroup) => {
+      if (colorGroup instanceof THREE.Group) {
+        // 遍历每个子组内的每个子对象（mesh 和 sprite）
+        // 由于 mesh 和 sprite 是成对出现的，我们以 mesh 为代表
+        colorGroup.children.forEach((child) => {
           if (child instanceof THREE.Mesh) {
-            mesh = child;
-          } else if (child instanceof THREE.Sprite) {
-            glow = child;
+            // 找到对应的 sprite（通常紧跟在 mesh 后面）
+            let sprite = null;
+            const meshIndex = colorGroup.children.indexOf(child);
+            if (meshIndex + 1 < colorGroup.children.length) {
+              const nextChild = colorGroup.children[meshIndex + 1];
+              if (nextChild instanceof THREE.Sprite) {
+                sprite = nextChild;
+              }
+            }
+
+            // 保存装饰球的全局位置（用于散开动画）
+            const worldPosition = new THREE.Vector3();
+            child.getWorldPosition(worldPosition);
+            originalPositions.ornaments.push({
+              mesh: child,
+              sprite: sprite,
+              colorGroup: colorGroup, // 保存所属的颜色组
+              position: child.position.clone(), // 保存本地位置（用于恢复）
+              worldPosition: worldPosition.clone() // 保存全局位置（用于散开计算）
+            });
           }
         });
-        if (mesh) {
-          originalPositions.ornaments.push({
-            group: group,
-            mesh: mesh,
-            glow: glow,
-            position: group.position.clone()
-          });
-        }
       }
     });
   }
@@ -1962,8 +1973,8 @@ function saveOriginalPositions() {
 
 // 生成散开位置
 function generateScatteredPositions() {
-  const scatterRange = 30; // 散开范围
-  const scatterHeight = 20; // 散开高度范围
+  const scatterRange = particleConfig.scatterAnimation.scatterRange; // 散开范围
+  const scatterHeight = particleConfig.scatterAnimation.scatterHeight; // 散开高度范围
 
   // 生成粒子系统的散开位置（随机偏移每个粒子）
   if (particleCone && particleCone.geometry && originalPositions.particleCone) {
@@ -1985,24 +1996,28 @@ function generateScatteredPositions() {
     );
   }
 
-  // 生成装饰球散开位置
+  // 生成装饰球散开位置（从每个装饰球的原始全局位置加上随机偏移）
   if (ornaments && originalPositions.ornaments.length > 0) {
-    scatteredPositions.ornaments = originalPositions.ornaments.map(() => ({
-      position: new THREE.Vector3(
-        (Math.random() - 0.5) * scatterRange,
-        Math.random() * scatterHeight,
-        (Math.random() - 0.5) * scatterRange
-      )
-    }));
+    scatteredPositions.ornaments = originalPositions.ornaments.map((item) => {
+      // 使用保存的原始全局位置，加上随机偏移
+      const originalWorldPos = item.worldPosition;
+      return {
+        position: new THREE.Vector3(
+          originalWorldPos.x + (Math.random() - 0.5) * scatterRange,
+          originalWorldPos.y + Math.random() * scatterHeight,
+          originalWorldPos.z + (Math.random() - 0.5) * scatterRange
+        )
+      };
+    });
   }
 
-  // 生成照片卡片散开位置
+  // 生成照片卡片散开位置（从每个照片卡片的原始位置加上随机偏移）
   if (photoCards && originalPositions.photoCards.length > 0) {
-    scatteredPositions.photoCards = originalPositions.photoCards.map(() => ({
+    scatteredPositions.photoCards = originalPositions.photoCards.map((item) => ({
       position: new THREE.Vector3(
-        (Math.random() - 0.5) * scatterRange,
-        Math.random() * scatterHeight,
-        (Math.random() - 0.5) * scatterRange
+        item.position.x + (Math.random() - 0.5) * scatterRange,
+        item.position.y + Math.random() * scatterHeight,
+        item.position.z + (Math.random() - 0.5) * scatterRange
       )
     }));
   }
@@ -2030,11 +2045,15 @@ function saveCurrentScatteredPositions() {
     scatteredPositions.star = star.position.clone();
   }
 
-  // 保存装饰球当前实际位置
+  // 保存装饰球当前实际位置（全局位置）
   if (ornaments && originalPositions.ornaments.length > 0) {
-    scatteredPositions.ornaments = originalPositions.ornaments.map((item) => ({
-      position: item.group.position.clone()
-    }));
+    scatteredPositions.ornaments = originalPositions.ornaments.map((item) => {
+      const worldPosition = new THREE.Vector3();
+      item.mesh.getWorldPosition(worldPosition);
+      return {
+        position: worldPosition.clone()
+      };
+    });
   }
 
   // 保存照片卡片当前实际位置
@@ -2157,11 +2176,30 @@ function updateScatterAnimation() {
   // 更新装饰球位置（只在第二阶段执行）
   if (scatterProgress > 0 && ornaments && originalPositions.ornaments.length > 0 && scatteredPositions.ornaments.length > 0) {
     originalPositions.ornaments.forEach((item, index) => {
-      if (item.group && scatteredPositions.ornaments[index]) {
+      if (item.mesh && scatteredPositions.ornaments[index]) {
+        // 获取原始全局位置和目标散开全局位置
+        const originalWorldPos = item.worldPosition;
+        const targetWorldPos = scatteredPositions.ornaments[index].position;
+
+        // 在全局坐标系中插值
+        const newWorldPos = new THREE.Vector3();
         if (isScattered) {
-          item.group.position.lerpVectors(item.position, scatteredPositions.ornaments[index].position, easedScatterProgress);
+          // 散开：从原始全局位置到散开全局位置
+          newWorldPos.lerpVectors(originalWorldPos, targetWorldPos, easedScatterProgress);
         } else {
-          item.group.position.lerpVectors(scatteredPositions.ornaments[index].position, item.position, easedScatterProgress);
+          // 聚集：从散开全局位置回到原始全局位置
+          newWorldPos.lerpVectors(targetWorldPos, originalWorldPos, easedScatterProgress);
+        }
+
+        // 将全局位置转换为相对于颜色组的本地位置
+        // 使用 worldToLocal 方法确保正确转换（考虑旋转、缩放等变换）
+        const localPos = new THREE.Vector3();
+        item.colorGroup.worldToLocal(localPos.copy(newWorldPos));
+
+        // 更新 mesh 和 sprite 的位置
+        item.mesh.position.copy(localPos);
+        if (item.sprite) {
+          item.sprite.position.copy(localPos);
         }
       }
     });
