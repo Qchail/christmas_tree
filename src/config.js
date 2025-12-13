@@ -48,11 +48,11 @@ export const particleConfig = {
   // ========== 五角星参数 ==========
   star: {
     enabled: true,        // 是否启用五角星
-    size: 0.3,            // 五角星大小
+    size: 0.6,            // 五角星大小
     color: 0xFFFF00,      // 五角星颜色（金色）
     glowColor: 0xFFFF00, // 发光颜色
     glowIntensity: 1.0,   // 发光强度 (与黄色小球一致)
-    thickness: 0.2,       // 五角星厚度（增加厚度让它更饱满）
+    thickness: 0.3,       // 五角星厚度（增加厚度让它更饱满）
     innerRadiusRatio: 0.6, // 内圆半径比例（0-1，数值越大越圆润饱满，默认0.4）
     bevelThickness: 0.1,  // 厚度边缘圆角深度（水平旋转时看到的侧面圆角，数值越大圆角越明显，建议0.05-0.2）
     bevelSize: 0.1,       // 厚度边缘圆角大小（水平旋转时看到的侧面圆角，数值越大圆角越明显，建议0.05-0.2）
@@ -62,7 +62,7 @@ export const particleConfig = {
     positionOffset: {     // 位置偏移
       x: 0,               // X 轴偏移
       y: 0.5,               // Y 轴偏移（高度）
-      z: -0.1              // Z 轴偏移（前后位置，正值向前）
+      z: -0.15              // Z 轴偏移（前后位置，正值向前）
     },
     // 光源参数
     light: {
@@ -115,7 +115,7 @@ export const particleConfig = {
   // ========== 圣诞球装饰 ==========
   ornaments: {
     enabled: true,
-    count: 10,           // 增加一点数量
+    count: 12,           // 增加一点数量
     radius: 0.25,        // 球体半径
     color: 0xFFFF00,     // 颜色 (与五角星一致 - 亮黄)
     metalness: 1.0,      // 金属度 (拉满，最强金属质感)
@@ -127,7 +127,7 @@ export const particleConfig = {
   // ========== 红色小球装饰 ==========
   redOrnaments: {
     enabled: true,
-    count: 10,           // 数量比金球多一些
+    count: 12,           // 数量比金球多一些
     radius: 0.25,        // 半径 (与金球一致)
     color: 0xFF0000,     // 颜色 (纯红)
     metalness: 1.0,      // 金属度 (拉满，最强反光)
@@ -139,7 +139,7 @@ export const particleConfig = {
   // ========== 蓝色小球装饰 ==========
   blueOrnaments: {
     enabled: true,
-    count: 10,           // 数量 (与红色小球一致)
+    count: 12,           // 数量 (与红色小球一致)
     radius: 0.25,        // 半径 (与红色小球一致)
     color: 0x0080FF,     // 颜色 (蓝色)
     metalness: 1.0,      // 金属度 (拉满，最强反光)

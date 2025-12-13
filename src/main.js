@@ -845,13 +845,13 @@ function createSnowSystem() {
   const range = particleConfig.snow.range;
   const height = particleConfig.snow.height;
   const groundLevel = 0; // 地面高度
+  const initialGroundSnowRatio = 0.35; // 初始地面雪花比例（35%的雪花一开始就在地面上）
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3;
 
     // 随机位置
     positions[i3] = (Math.random() - 0.5) * range;
-    positions[i3 + 1] = Math.random() * height;
     positions[i3 + 2] = (Math.random() - 0.5) * range;
 
     // 随机参数
@@ -859,7 +859,18 @@ function createSnowSystem() {
     sizes[i] = particleConfig.snow.size.min + Math.random() * (particleConfig.snow.size.max - particleConfig.snow.size.min);
     opacities[i] = particleConfig.snow.opacity.min + Math.random() * (particleConfig.snow.opacity.max - particleConfig.snow.opacity.min);
     drifts[i] = Math.random() * Math.PI * 2;
-    landed[i] = 0; // 初始都未落地
+
+    // 决定是否初始就在地面上
+    const isInitialGroundSnow = Math.random() < initialGroundSnowRatio;
+    if (isInitialGroundSnow) {
+      // 初始就在地面上
+      positions[i3 + 1] = groundLevel;
+      landed[i] = 1; // 标记为已落地
+    } else {
+      // 在空中，随机高度
+      positions[i3 + 1] = Math.random() * height;
+      landed[i] = 0; // 未落地
+    }
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
