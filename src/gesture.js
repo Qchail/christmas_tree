@@ -11,7 +11,9 @@ export class GestureController {
       onScatter: options.onScatter || (() => { }),
       onGather: options.onGather || (() => { }),
       onPinchStart: options.onPinchStart || (() => false),
-      onPinchEnd: options.onPinchEnd || (() => { })
+      onPinchEnd: options.onPinchEnd || (() => { }),
+      onIndexPointing: options.onIndexPointing || (() => { }),
+      onIndexPointingEnd: options.onIndexPointingEnd || (() => { })
     };
 
     this.hands = null;
@@ -229,30 +231,49 @@ export class GestureController {
         this.callbacks.onGather();
       }
 
+      // 进入单指模式 : 随机看照片
+      if (gesture === 'INDEX_POINTING') {
+        this.showStatus('识别: 随机照片');
+        this.callbacks.onIndexPointing();
+      }
+
+      // 退出单指模式 : 关闭照片
+      if (this.lastGesture === 'INDEX_POINTING') {
+        this.callbacks.onIndexPointingEnd();
+      }
+
       this.lastGesture = gesture;
     }
   }
 
   detectHandPose(landmarks) {
     // 判断手指弯曲状态
-    const fingers = [8, 12, 16, 20]; // 食指、中指、无名指、小指
-    let bentCount = 0;
     const wrist = landmarks[0];
 
-    for (let tipIdx of fingers) {
+    // 辅助函数：判断手指是否弯曲
+    const isBent = (tipIdx) => {
       const pipIdx = tipIdx - 2; // PIP 是 TIP 的前两个点
-
       // 简单距离比较：如果指尖到手腕的距离 < 关节到手腕的距离，认为是弯曲
       const distTip = this.calculateDistance(landmarks[tipIdx], wrist);
       const distPip = this.calculateDistance(landmarks[pipIdx], wrist);
+      return distTip < distPip;
+    };
 
-      if (distTip < distPip) {
-        bentCount++;
-      }
+    const indexBent = isBent(8);   // 食指
+    const middleBent = isBent(12); // 中指
+    const ringBent = isBent(16);   // 无名指
+    const pinkyBent = isBent(20);  // 小指
+
+    let bentCount = (indexBent ? 1 : 0) + (middleBent ? 1 : 0) + (ringBent ? 1 : 0) + (pinkyBent ? 1 : 0);
+
+    // 单指模式：食指伸直，其他三指弯曲
+    if (!indexBent && middleBent && ringBent && pinkyBent) {
+      return 'INDEX_POINTING';
     }
 
-    if (bentCount >= 3) return 'FIST'; // 大部分手指弯曲 -> 握拳
-    if (bentCount <= 1) return 'OPEN'; // 大部分手指伸直 -> 伸掌
+    if (bentCount >= 4) return 'FIST'; // 握拳：4指都弯曲 (比之前严格，避免误判)
+    if (bentCount <= 1) return 'OPEN'; // 伸掌：大部分手指伸直
+
     return 'UNKNOWN';
   }
 

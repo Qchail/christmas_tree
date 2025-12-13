@@ -2912,6 +2912,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (overlay && overlay.classList.contains('active')) {
           closePhotoOverlay();
         }
+      },
+      onIndexPointing: () => {
+        // 单指手势：模拟按下 S 键随机打开照片
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
+      },
+      onIndexPointingEnd: () => {
+        // 取消单指手势：模拟按下 Esc 键关闭照片
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       }
     });
 
