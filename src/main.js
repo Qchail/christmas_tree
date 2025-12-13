@@ -234,7 +234,7 @@ function createStar() {
   const size = particleConfig.star.size;
   const thickness = particleConfig.star.thickness;
   const outerRadius = size;
-  const innerRadius = size * 0.4; // 内圆半径，形成五角星形状
+  const innerRadius = size * particleConfig.star.innerRadiusRatio; // 内圆半径，形成五角星形状（增大让五角星更饱满）
 
   const shape = new THREE.Shape();
   const points = 5;
@@ -254,10 +254,14 @@ function createStar() {
   }
   shape.closePath();
 
-  // 使用挤压几何体创建3D五角星
+  // 使用挤压几何体创建3D五角星，添加圆角让边缘更圆润
   const extrudeSettings = {
     depth: thickness,
-    bevelEnabled: false
+    bevelEnabled: true,
+    bevelThickness: particleConfig.star.bevelSize,
+    bevelSize: particleConfig.star.bevelSize,
+    bevelSegments: 3, // 圆角分段数，让圆角更平滑
+    curveSegments: 8  // 曲线分段数，让形状更平滑
   };
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 

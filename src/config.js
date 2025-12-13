@@ -48,15 +48,17 @@ export const particleConfig = {
   // ========== 五角星参数 ==========
   star: {
     enabled: true,        // 是否启用五角星
-    size: 1,            // 五角星大小
+    size: 0.5,            // 五角星大小
     color: 0xFFFF00,      // 五角星颜色（金色）
     glowColor: 0xFFFF00, // 发光颜色
     glowIntensity: 3.0,   // 发光强度
-    thickness: 0.1,       // 五角星厚度
+    thickness: 0.4,       // 五角星厚度（增加厚度让它更饱满）
+    innerRadiusRatio: 0.65, // 内圆半径比例（0-1，数值越大越圆润饱满，默认0.4）
+    bevelSize: 0.05,     // 圆角大小（让边缘更圆润）
     positionOffset: {     // 位置偏移
       x: 0,               // X 轴偏移
       y: 0.5,               // Y 轴偏移（高度）
-      z: 0              // Z 轴偏移（前后位置，正值向前）
+      z: -0.2              // Z 轴偏移（前后位置，正值向前）
     }
   }
 };
