@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-// 圣诞绿色
-const CHRISTMAS_GREEN = 0x228B22;
+import { particleConfig } from './config.js';
 
 console.log('Three.js 版本:', THREE.REVISION);
 
@@ -40,10 +38,10 @@ controls.target.set(0, 4, 0);
 
 // 创建粒子圆锥体
 function createParticleCone() {
-  // 圆锥体参数
-  const height = 8; // 圆锥体高度
-  const baseRadius = 5; // 底部半径
-  const particleCount = 2000; // 粒子数量
+  // 从配置文件读取参数
+  const height = particleConfig.cone.height;
+  const baseRadius = particleConfig.cone.baseRadius;
+  const particleCount = particleConfig.cone.particleCount;
 
   // 创建粒子几何体
   const geometry = new THREE.BufferGeometry();
@@ -51,8 +49,8 @@ function createParticleCone() {
   const sizes = new Float32Array(particleCount);
   const colors = new Float32Array(particleCount * 3);
 
-  // 圣诞绿色
-  const greenColor = new THREE.Color(CHRISTMAS_GREEN);
+  // 从配置文件读取颜色
+  const greenColor = new THREE.Color(particleConfig.color.base);
 
   for (let i = 0; i < particleCount; i++) {
     const i3 = i * 3;
@@ -74,11 +72,13 @@ function createParticleCone() {
     positions[i3 + 1] = y;
     positions[i3 + 2] = Math.sin(angle) * radiusFactor;
 
-    // 随机大小（0.1 到 0.3）
-    sizes[i] = 0.1 + Math.random() * 0.2;
+    // 从配置文件读取大小范围
+    const sizeRange = particleConfig.size.max - particleConfig.size.min;
+    sizes[i] = particleConfig.size.min + Math.random() * sizeRange;
 
-    // 设置颜色（可以有一些变化）
-    const colorVariation = 0.8 + Math.random() * 0.2; // 0.8 到 1.0 的亮度变化
+    // 从配置文件读取颜色变化范围
+    const colorVariationRange = particleConfig.color.variationMax - particleConfig.color.variationMin;
+    const colorVariation = particleConfig.color.variationMin + Math.random() * colorVariationRange;
     colors[i3] = greenColor.r * colorVariation;
     colors[i3 + 1] = greenColor.g * colorVariation;
     colors[i3 + 2] = greenColor.b * colorVariation;
@@ -92,18 +92,36 @@ function createParticleCone() {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       time: { value: 0 },
-      lightPosition: { value: new THREE.Vector3(0, 10, 5) },
-      lightPosition2: { value: new THREE.Vector3(5, 8, -5) },
+      lightPosition: {
+        value: new THREE.Vector3(
+          particleConfig.lighting.light1.position.x,
+          particleConfig.lighting.light1.position.y,
+          particleConfig.lighting.light1.position.z
+        )
+      },
+      lightPosition2: {
+        value: new THREE.Vector3(
+          particleConfig.lighting.light2.position.x,
+          particleConfig.lighting.light2.position.y,
+          particleConfig.lighting.light2.position.z
+        )
+      },
       viewerPosition: { value: camera.position },
-      lightColor: { value: new THREE.Color(0xffffff) },
-      lightIntensity: { value: 1.5 },
-      lightIntensity2: { value: 0.8 },
-      shininess: { value: 32.0 }, // 高光锐度
-      specularStrength: { value: 0.8 } // 镜面反射强度
+      lightColor: { value: new THREE.Color(particleConfig.lighting.light1.color) },
+      lightIntensity: { value: particleConfig.lighting.light1.intensity },
+      lightIntensity2: { value: particleConfig.lighting.light2.intensity },
+      shininess: { value: particleConfig.lighting.shininess },
+      specularStrength: { value: particleConfig.lighting.specularStrength },
+      ambientIntensity: { value: particleConfig.lighting.ambient },
+      pointSizeScale: { value: particleConfig.size.scale },
+      particleRadius: { value: particleConfig.appearance.radius },
+      particleEdge: { value: particleConfig.appearance.edge },
+      colorEnhancement: { value: particleConfig.appearance.colorEnhancement }
     },
     vertexShader: `
       attribute float size;
       attribute vec3 particleColor;
+      uniform float pointSizeScale;
       varying vec3 vColor;
       varying vec3 vWorldPosition;
       varying vec3 vViewPosition;
@@ -116,8 +134,8 @@ function createParticleCone() {
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         vViewPosition = -mvPosition.xyz;
         
-        // 增大粒子尺寸，并确保在不同距离下保持清晰
-        gl_PointSize = size * (1000.0 / -mvPosition.z);
+        // 从配置读取缩放因子
+        gl_PointSize = size * (pointSizeScale / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
@@ -130,6 +148,10 @@ function createParticleCone() {
       uniform float lightIntensity2;
       uniform float shininess;
       uniform float specularStrength;
+      uniform float ambientIntensity;
+      uniform float particleRadius;
+      uniform float particleEdge;
+      uniform float colorEnhancement;
       
       varying vec3 vColor;
       varying vec3 vWorldPosition;
@@ -140,9 +162,9 @@ function createParticleCone() {
         vec2 coord = gl_PointCoord - center;
         float dist = length(coord);
         
-        // 创建清晰的圆形粒子
-        float radius = 0.45;
-        float edge = 0.05;
+        // 从配置读取粒子外观参数
+        float radius = particleRadius;
+        float edge = particleEdge;
         
         float alpha;
         if (dist < radius) {
@@ -164,8 +186,8 @@ function createParticleCone() {
         vec3 lightDir1 = normalize((viewMatrix * vec4(lightPosition, 1.0)).xyz - (viewMatrix * vec4(vWorldPosition, 1.0)).xyz);
         vec3 lightDir2 = normalize((viewMatrix * vec4(lightPosition2, 1.0)).xyz - (viewMatrix * vec4(vWorldPosition, 1.0)).xyz);
         
-        // 环境光
-        vec3 ambient = vColor * 0.3;
+        // 从配置读取环境光强度
+        vec3 ambient = vColor * ambientIntensity;
         
         // 漫反射（光源1）
         float diff1 = max(dot(viewNormal, lightDir1), 0.0);
@@ -189,8 +211,8 @@ function createParticleCone() {
         // 组合所有光照
         vec3 finalColor = ambient + diffuse1 + diffuse2 + specular1 + specular2;
         
-        // 增强颜色
-        finalColor = pow(finalColor, vec3(0.9)) * 1.2;
+        // 从配置读取颜色增强倍数
+        finalColor = pow(finalColor, vec3(0.9)) * colorEnhancement;
         
         gl_FragColor = vec4(finalColor, alpha);
       }
