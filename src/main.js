@@ -489,6 +489,89 @@ function createStar() {
   return star;
 }
 
+// 创建雪花系统
+function createSnowSystem() {
+  if (!particleConfig.snow.enabled) return null;
+
+  const count = particleConfig.snow.count;
+  const geometry = new THREE.BufferGeometry();
+
+  const positions = new Float32Array(count * 3);
+  const velocities = new Float32Array(count); // 下落速度
+  const sizes = new Float32Array(count);
+  const opacities = new Float32Array(count);
+  const drifts = new Float32Array(count); // 水平飘动参数
+
+  const range = particleConfig.snow.range;
+  const height = particleConfig.snow.height;
+
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+
+    // 随机位置
+    positions[i3] = (Math.random() - 0.5) * range;
+    positions[i3 + 1] = Math.random() * height;
+    positions[i3 + 2] = (Math.random() - 0.5) * range;
+
+    // 随机参数
+    velocities[i] = particleConfig.snow.speed.min + Math.random() * (particleConfig.snow.speed.max - particleConfig.snow.speed.min);
+    sizes[i] = particleConfig.snow.size.min + Math.random() * (particleConfig.snow.size.max - particleConfig.snow.size.min);
+    opacities[i] = particleConfig.snow.opacity.min + Math.random() * (particleConfig.snow.opacity.max - particleConfig.snow.opacity.min);
+    drifts[i] = Math.random() * Math.PI * 2;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 1));
+  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('opacity', new THREE.BufferAttribute(opacities, 1));
+  geometry.setAttribute('drift', new THREE.BufferAttribute(drifts, 1));
+
+  // 使用自定义Shader实现朦胧雪花
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: new THREE.Color(particleConfig.snow.color) },
+      time: { value: 0 },
+      pointSizeScale: { value: 200.0 } // 控制雪花整体大小的缩放
+    },
+    vertexShader: `
+      attribute float size;
+      attribute float opacity;
+      uniform float pointSizeScale;
+      varying float vOpacity;
+      
+      void main() {
+        vOpacity = opacity;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (pointSizeScale / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 color;
+      varying float vOpacity;
+      
+      void main() {
+        // 创建柔和的圆形
+        vec2 center = vec2(0.5, 0.5);
+        vec2 coord = gl_PointCoord - center;
+        float dist = length(coord);
+        
+        // 软边缘
+        float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
+        
+        if (alpha < 0.01) discard;
+        
+        gl_FragColor = vec4(color, alpha * vOpacity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  return new THREE.Points(geometry, material);
+}
+
 // 创建粒子圆锥体
 const particleCone = createParticleCone();
 scene.add(particleCone);
@@ -533,6 +616,13 @@ if (star) {
   }
 }
 
+// 创建并添加雪花系统
+const snowSystem = createSnowSystem();
+if (snowSystem) {
+  scene.add(snowSystem);
+  console.log('雪花系统已创建，数量:', snowSystem.geometry.attributes.position.count);
+}
+
 // 动画循环
 function animate() {
   requestAnimationFrame(animate);
@@ -548,6 +638,39 @@ function animate() {
   }
 
   // 五角星使用 MeshBasicMaterial，不需要更新 uniform
+
+  // 更新雪花位置
+  if (snowSystem) {
+    const positions = snowSystem.geometry.attributes.position.array;
+    const velocities = snowSystem.geometry.attributes.velocity.array;
+    const drifts = snowSystem.geometry.attributes.drift.array;
+    const count = snowSystem.geometry.attributes.position.count;
+    const height = particleConfig.snow.height;
+    const range = particleConfig.snow.range;
+
+    // 更新时间 uniform 供 shader 使用（如果需要）
+    // snowSystem.material.uniforms.time.value += 0.01;
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+
+      // 下落
+      positions[i3 + 1] -= velocities[i];
+
+      // 飘动 (使用简单的正弦波模拟风)
+      positions[i3] += Math.sin(Date.now() * 0.001 + drifts[i]) * 0.02;
+      positions[i3 + 2] += Math.cos(Date.now() * 0.001 + drifts[i]) * 0.02;
+
+      // 循环
+      if (positions[i3 + 1] < 0) {
+        positions[i3 + 1] = height;
+        positions[i3] = (Math.random() - 0.5) * range;
+        positions[i3 + 2] = (Math.random() - 0.5) * range;
+      }
+    }
+
+    snowSystem.geometry.attributes.position.needsUpdate = true;
+  }
 
   controls.update();
   renderer.render(scene, camera);

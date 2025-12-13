@@ -72,6 +72,27 @@ export const particleConfig = {
       distance: 15.0,     // 光源影响距离
       decay: 2.0          // 光源衰减（2.0 = 物理衰减）
     }
+  },
+
+  // ========== 雪花参数 ==========
+  snow: {
+    enabled: true,        // 是否启用雪花
+    count: 3000,          // 雪花数量
+    color: 0xFFFFFF,      // 雪花颜色
+    range: 25.0,          // 雪花分布范围（xz平面大小）
+    height: 20.0,         // 雪花分布高度
+    size: {
+      min: 0.15,          // 最小大小
+      max: 0.2            // 最大大小
+    },
+    speed: {
+      min: 0.005,         // 最小下落速度
+      max: 0.01           // 最大下落速度
+    },
+    opacity: {
+      min: 0.3,           // 最小透明度
+      max: 0.8            // 最大透明度
+    }
   }
 };
 
