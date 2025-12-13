@@ -2010,6 +2010,39 @@ function generateScatteredPositions() {
   }
 }
 
+// 保存当前实际散开位置（用于下次聚集时使用）
+function saveCurrentScatteredPositions() {
+  // 保存粒子系统的当前实际位置
+  if (particleCone && particleCone.geometry) {
+    const positions = particleCone.geometry.attributes.position.array;
+    scatteredPositions.particleCone = new Float32Array(positions);
+  }
+
+  // 保存五角星当前实际位置
+  if (star) {
+    scatteredPositions.star = star.position.clone();
+  }
+
+  // 保存装饰球当前实际位置
+  if (ornaments && originalPositions.ornaments.length > 0) {
+    scatteredPositions.ornaments = originalPositions.ornaments.map((item) => ({
+      position: item.group.position.clone()
+    }));
+  }
+
+  // 保存照片卡片当前实际位置
+  if (photoCards && originalPositions.photoCards.length > 0) {
+    scatteredPositions.photoCards = originalPositions.photoCards.map((item) => ({
+      position: item.object.position.clone()
+    }));
+  }
+
+  // 保存彩带当前实际位置
+  if (spiralRibbon) {
+    scatteredPositions.spiralRibbon = spiralRibbon.position.clone();
+  }
+}
+
 // 缓动函数（ease in out）
 function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -2133,9 +2166,23 @@ function updateScatterAnimation() {
 
   // 更新彩带渐变效果（从尾部到头部消失/出现）
   if (spiralRibbon) {
-    // 散开时：fadeProgress从0到1（从尾部到头部消失）
-    // 聚集时：fadeProgress从-1到0（从头部到尾部出现）
-    const fadeProgressValue = isScattered ? easedRibbonProgress : -(1.0 - easedRibbonProgress);
+    let fadeProgressValue;
+    if (isScattered) {
+      // 散开时：fadeProgress从0到1（从尾部到头部消失）
+      fadeProgressValue = easedRibbonProgress;
+    } else {
+      // 聚集时：fadeProgress从-1到0（从头部到尾部出现）
+      // 第一阶段（元素聚集）：fadeProgress保持为-1（光带完全消失）
+      // 第二阶段（光带出现）：fadeProgress从-1到0
+      if (elapsed < scatterDuration) {
+        fadeProgressValue = -1.0; // 光带完全消失
+      } else {
+        // 第二阶段：从-1到0
+        const ribbonProgress = Math.min((elapsed - scatterDuration) / ribbonFadeDuration, 1);
+        const easedRibbonProgress2 = easeInOutCubic(ribbonProgress);
+        fadeProgressValue = -1.0 + easedRibbonProgress2; // 从-1到0
+      }
+    }
 
     spiralRibbon.children.forEach((child) => {
       if (child.material && child.material.uniforms) {
@@ -2151,9 +2198,9 @@ function updateScatterAnimation() {
 
   if (totalProgress >= 1) {
     isAnimating = false;
-    // 如果散开，重新生成散开位置（为下次聚集做准备）
+    // 如果散开动画结束，保存当前实际位置（为下次聚集做准备）
     if (isScattered) {
-      generateScatteredPositions();
+      saveCurrentScatteredPositions();
     }
     // 确保光带状态正确
     if (spiralRibbon) {
@@ -2176,8 +2223,11 @@ function toggleScatter() {
   animationStartTime = Date.now();
 
   if (isScattered) {
-    // 散开：生成散开位置
-    generateScatteredPositions();
+    // 散开：如果还没有散开位置，则生成新的随机位置
+    // 如果已经有散开位置（从上次散开保存的），则使用保存的位置
+    if (!scatteredPositions.particleCone || !scatteredPositions.star) {
+      generateScatteredPositions();
+    }
   }
 }
 
