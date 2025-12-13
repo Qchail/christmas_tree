@@ -288,18 +288,86 @@ function createStar() {
 
   const shape = new THREE.Shape();
   const points = 5;
+  const cornerRadius = particleConfig.star.cornerRadius || 0.05;
 
+  // 先计算所有顶点
+  const vertices = [];
   for (let i = 0; i < points * 2; i++) {
-    // 调整角度，使五角星的一个角朝上（正立）
     const angle = (i * Math.PI) / points - Math.PI / 2;
     const radius = i % 2 === 0 ? outerRadius : innerRadius;
     const x = Math.cos(angle) * radius;
     const y = Math.sin(angle) * radius;
+    vertices.push({ x, y });
+  }
+
+  // 创建带圆角的路径
+  for (let i = 0; i < vertices.length; i++) {
+    const current = vertices[i];
+    const next = vertices[(i + 1) % vertices.length];
+    const prev = vertices[(i - 1 + vertices.length) % vertices.length];
+
+    // 计算从上一个点到当前点的方向（归一化）
+    const dirFromPrev = {
+      x: current.x - prev.x,
+      y: current.y - prev.y
+    };
+    const lenFromPrev = Math.sqrt(dirFromPrev.x * dirFromPrev.x + dirFromPrev.y * dirFromPrev.y);
+
+    // 计算从当前点到下一个点的方向（归一化）
+    const dirToNext = {
+      x: next.x - current.x,
+      y: next.y - current.y
+    };
+    const lenToNext = Math.sqrt(dirToNext.x * dirToNext.x + dirToNext.y * dirToNext.y);
 
     if (i === 0) {
-      shape.moveTo(x, y);
+      // 第一个点：移动到起始位置（在第一个角之前，考虑圆角）
+      if (lenFromPrev > 0 && lenToNext > 0) {
+        dirFromPrev.x /= lenFromPrev;
+        dirFromPrev.y /= lenFromPrev;
+        dirToNext.x /= lenToNext;
+        dirToNext.y /= lenToNext;
+
+        // 计算圆角起始点（从prev到current的方向上，距离角点cornerRadius）
+        const cornerStartX = current.x - dirFromPrev.x * cornerRadius;
+        const cornerStartY = current.y - dirFromPrev.y * cornerRadius;
+        shape.moveTo(cornerStartX, cornerStartY);
+      } else {
+        shape.moveTo(current.x, current.y);
+      }
+    }
+
+    // 为每个角创建圆角
+    if (lenFromPrev > 0 && lenToNext > 0) {
+      // 归一化方向向量
+      dirFromPrev.x /= lenFromPrev;
+      dirFromPrev.y /= lenFromPrev;
+      dirToNext.x /= lenToNext;
+      dirToNext.y /= lenToNext;
+
+      // 计算圆角的起始点和结束点
+      // 圆角起始点：从当前角点沿着prev->current方向后退cornerRadius
+      const cornerStartX = current.x - dirFromPrev.x * cornerRadius;
+      const cornerStartY = current.y - dirFromPrev.y * cornerRadius;
+
+      // 圆角结束点：从当前角点沿着current->next方向前进cornerRadius
+      const cornerEndX = current.x + dirToNext.x * cornerRadius;
+      const cornerEndY = current.y + dirToNext.y * cornerRadius;
+
+      // 先画直线到圆角起始点（如果还没到的话）
+      if (i > 0) {
+        shape.lineTo(cornerStartX, cornerStartY);
+      }
+
+      // 使用二次贝塞尔曲线创建圆角
+      // 控制点是角点本身，起点是cornerStart，终点是cornerEnd
+      shape.quadraticCurveTo(
+        current.x, current.y,
+        cornerEndX, cornerEndY
+      );
     } else {
-      shape.lineTo(x, y);
+      // 如果计算失败，使用直线连接
+      shape.lineTo(current.x, current.y);
     }
   }
   shape.closePath();
@@ -308,10 +376,10 @@ function createStar() {
   const extrudeSettings = {
     depth: thickness,
     bevelEnabled: true,
-    bevelThickness: particleConfig.star.bevelSize,
-    bevelSize: particleConfig.star.bevelSize,
-    bevelSegments: 3, // 圆角分段数，让圆角更平滑
-    curveSegments: 8  // 曲线分段数，让形状更平滑
+    bevelThickness: particleConfig.star.bevelThickness !== undefined ? particleConfig.star.bevelThickness : particleConfig.star.bevelSize || 0.05, // 圆角厚度
+    bevelSize: particleConfig.star.bevelSize || 0.05, // 圆角大小
+    bevelSegments: particleConfig.star.bevelSegments || 8, // 圆角分段数，让圆角更平滑
+    curveSegments: particleConfig.star.curveSegments || 16  // 曲线分段数，让形状更平滑
   };
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
