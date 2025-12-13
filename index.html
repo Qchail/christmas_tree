@@ -91,8 +91,8 @@
     /* 上传按钮样式 */
     #upload-container {
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: 36px;
+      right: 36px;
       z-index: 100;
       display: flex;
       flex-direction: column;
@@ -309,10 +309,40 @@
     #file-input {
       display: none;
     }
+
+    /* MERRY CHRISTMAS 文字样式 */
+    #merry-christmas {
+      position: fixed;
+      top: 24px;
+      left: 36px;
+      font-family: 'Times New Roman', 'Georgia', serif;
+      font-size: 56px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      color: transparent;
+      background: #ffd700;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      z-index: 100;
+      pointer-events: none;
+      user-select: none;
+      filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
+    }
+
+    @media (max-width: 768px) {
+      #merry-christmas {
+        font-size: 24px;
+        letter-spacing: 2px;
+        top: 15px;
+        left: 15px;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <div id="merry-christmas">MERRY CHRISTMAS</div>
   <div id="canvas-container"></div>
 
   <!-- 上传按钮 -->
