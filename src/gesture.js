@@ -10,8 +10,6 @@ export class GestureController {
     this.callbacks = {
       onScatter: options.onScatter || (() => { }),
       onGather: options.onGather || (() => { }),
-      onPinchStart: options.onPinchStart || (() => false),
-      onPinchEnd: options.onPinchEnd || (() => { }),
       onIndexPointing: options.onIndexPointing || (() => { }),
       onIndexPointingEnd: options.onIndexPointingEnd || (() => { }),
       onZoom: options.onZoom || (() => { })
@@ -183,26 +181,18 @@ export class GestureController {
     const pinchThreshold = 0.05;
     const isPinching = dist < pinchThreshold;
 
-    // 3. 触发鼠标/指针事件
+    // 3. 触发鼠标/指针事件（用于拖拽等交互）
     if (isPinching && !this.isClicking) {
       // 开始捏合 -> 按下
       this.isClicking = true;
       this.cursorElement.classList.add('clicking');
 
-      // 尝试触发 PinchStart 回调 (用于检测是否捏中了照片)
-      // 如果回调返回 true，说明处理了交互（如打开了照片），则不再分发 mousedown (避免旋转)
-      const handled = this.callbacks.onPinchStart(this.cursorX, this.cursorY);
-
-      if (!handled) {
-        this.dispatchEvent('pointerdown', this.cursorX, this.cursorY);
-        this.dispatchEvent('mousedown', this.cursorX, this.cursorY);
-      }
+      this.dispatchEvent('pointerdown', this.cursorX, this.cursorY);
+      this.dispatchEvent('mousedown', this.cursorX, this.cursorY);
     } else if (!isPinching && this.isClicking) {
       // 结束捏合 -> 松开
       this.isClicking = false;
       this.cursorElement.classList.remove('clicking');
-
-      this.callbacks.onPinchEnd(); // 尝试关闭照片
 
       this.dispatchEvent('pointerup', this.cursorX, this.cursorY);
       this.dispatchEvent('mouseup', this.cursorX, this.cursorY);
