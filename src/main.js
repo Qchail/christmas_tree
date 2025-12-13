@@ -944,26 +944,45 @@ function createSpiralRibbon() {
         float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.2);
         fresnel = smoothstep(0.0, 1.0, fresnel);
         
-        // 多层闪光效果 - 创造奢华闪光感
-        // 主要闪光波（沿丝带长度方向）
-        float sparkle1 = sin(vUv.x * 25.0 + time * sparkleSpeed) * 0.5 + 0.5;
-        sparkle1 = pow(sparkle1, 2.5);
+        // 多层闪光效果 - 创造布灵布灵闪光感
+        // 主要闪光波（沿丝带长度方向）- 增强频率和强度
+        float sparkle1 = sin(vUv.x * 30.0 + time * sparkleSpeed * 1.2) * 0.5 + 0.5;
+        sparkle1 = pow(sparkle1, 1.8); // 降低指数，让闪光更明显
         
-        // 快速闪烁点（高频闪光）
-        float sparkle2 = sin(vUv.x * 60.0 + time * sparkleSpeed * 2.5) * 0.5 + 0.5;
-        sparkle2 = pow(sparkle2, 8.0);
+        // 快速闪烁点（高频闪光）- 增强频率
+        float sparkle2 = sin(vUv.x * 80.0 + time * sparkleSpeed * 4.0) * 0.5 + 0.5;
+        sparkle2 = pow(sparkle2, 6.0); // 更尖锐的闪光点
         
-        // 中频闪光（创造流动感）
-        float sparkle3 = sin(vUv.x * 35.0 + time * sparkleSpeed * 1.5) * 0.5 + 0.5;
-        sparkle3 = pow(sparkle3, 4.0);
+        // 超高频闪光点（创造密集闪光）
+        float sparkle2b = sin(vUv.x * 120.0 + time * sparkleSpeed * 5.5) * 0.5 + 0.5;
+        sparkle2b = pow(sparkle2b, 10.0);
         
-        // 随机闪光点（使用噪声模拟）
-        float noise = fract(sin(dot(vec2(vUv.x * 100.0, time * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
-        float sparkle4 = step(0.95, noise) * (0.5 + 0.5 * sin(time * sparkleSpeed * 5.0));
+        // 中频闪光（创造流动感）- 增强
+        float sparkle3 = sin(vUv.x * 45.0 + time * sparkleSpeed * 2.0) * 0.5 + 0.5;
+        sparkle3 = pow(sparkle3, 3.0);
         
-        // 组合所有闪光效果
-        float totalSparkle = sparkle1 * 0.5 + sparkle2 * 0.3 + sparkle3 * 0.15 + sparkle4 * 0.05;
-        totalSparkle = pow(totalSparkle, 0.7); // 增强整体闪光强度
+        // 随机闪光点（使用噪声模拟）- 增强频率和强度
+        float noise1 = fract(sin(dot(vec2(vUv.x * 120.0, time * 0.8), vec2(12.9898, 78.233))) * 43758.5453);
+        float sparkle4 = step(0.92, noise1) * (0.5 + 0.5 * sin(time * sparkleSpeed * 8.0));
+        sparkle4 = pow(sparkle4, 0.5); // 让随机闪光更明显
+        
+        // 额外的随机闪光点（增加闪光密度）
+        float noise2 = fract(sin(dot(vec2(vUv.x * 150.0 + 7.0, time * 1.2), vec2(37.7193, 91.173))) * 43758.5453);
+        float sparkle5 = step(0.90, noise2) * (0.6 + 0.4 * cos(time * sparkleSpeed * 6.0));
+        sparkle5 = pow(sparkle5, 0.4);
+        
+        // 强烈的亮点（模拟光线反射）- 沿丝带移动的亮点
+        float highlight = sin(vUv.x * 20.0 + time * sparkleSpeed * 0.8) * 0.5 + 0.5;
+        highlight = pow(highlight, 1.2);
+        highlight = step(0.85, highlight) * highlight * 2.0; // 只显示最亮的部分
+        
+        // 组合所有闪光效果 - 增强权重，让闪光更明显
+        float totalSparkle = sparkle1 * 0.35 + sparkle2 * 0.25 + sparkle2b * 0.15 + sparkle3 * 0.12 + sparkle4 * 0.08 + sparkle5 * 0.05;
+        totalSparkle = pow(totalSparkle, 0.5); // 降低指数，让闪光更亮更明显
+        
+        // 添加强烈的移动亮点
+        totalSparkle += highlight * 0.3;
+        totalSparkle = min(totalSparkle, 1.0); // 限制最大值
         
         // 边缘渐变（让丝带边缘更亮，创造扁平丝带感）
         float edgeGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
@@ -973,13 +992,13 @@ function createSpiralRibbon() {
         float centerGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
         centerGlow = pow(centerGlow, 1.5);
         
-        // 高级银白色基础色（带微妙的冷色调）
-        vec3 silverBase = baseColor;
-        // 添加微妙的蓝白色调，增强高级感
-        vec3 premiumSilver = mix(silverBase, vec3(0.95, 0.98, 1.0), 0.3);
+        // 金黄色基础色（带微妙的暖色调）
+        vec3 goldBase = baseColor;
+        // 添加微妙的暖黄色调，增强高级感和温暖感
+        vec3 premiumGold = mix(goldBase, vec3(1.0, 0.95, 0.7), 0.25);
         
         // 构建最终颜色
-        vec3 finalColor = premiumSilver;
+        vec3 finalColor = premiumGold;
         
         // 添加强烈的边缘辉光（增强）
         finalColor += glowColor * glowIntensity * fresnel * 2.5;
@@ -990,19 +1009,28 @@ function createSpiralRibbon() {
         // 添加边缘发光（增强）
         finalColor += glowColor * edgeGlow * 1.0;
         
-        // 添加奢华闪光效果（使用纯白色闪光）
+        // 添加布灵布灵闪光效果（使用纯白色闪光）- 大幅增强
         vec3 sparkleColor = vec3(1.0, 1.0, 1.0); // 纯白色闪光
-        finalColor += sparkleColor * sparkleIntensity * totalSparkle * 2.5;
+        // 主要闪光效果 - 增强强度
+        finalColor += sparkleColor * sparkleIntensity * totalSparkle * 4.5;
         
-        // 添加菲涅尔边缘闪光（增强）
-        finalColor += sparkleColor * fresnel * 1.2;
+        // 添加强烈的闪光高光（只在闪光最强时显示）
+        float intenseSparkle = step(0.7, totalSparkle) * totalSparkle;
+        finalColor += sparkleColor * intenseSparkle * 3.0;
+        
+        // 添加菲涅尔边缘闪光（增强）- 让边缘也有闪光感
+        finalColor += sparkleColor * fresnel * 1.5;
+        
+        // 添加动态闪光（随视角变化）
+        float dynamicSparkle = fresnel * totalSparkle;
+        finalColor += sparkleColor * dynamicSparkle * 2.0;
         
         // 整体亮度增强，创造高级感
         finalColor *= 1.8;
         
-        // 添加微妙的颜色变化（根据视角）
+        // 添加微妙的颜色变化（根据视角）- 使用暖色调
         float colorShift = fresnel * 0.3;
-        finalColor = mix(finalColor, vec3(0.98, 0.99, 1.0), colorShift);
+        finalColor = mix(finalColor, vec3(1.0, 0.98, 0.85), colorShift);
         
         // 计算透明度（中心更不透明，边缘更透明）
         float alpha = 0.9 + fresnel * 0.1;
@@ -1034,7 +1062,8 @@ function createSpiralRibbon() {
     uniforms: {
       time: { value: 0 },
       glowColor: { value: new THREE.Color(config.glowColor) },
-      glowIntensity: { value: config.glowIntensity * 0.6 } // 外层光晕强度稍低
+      glowIntensity: { value: config.glowIntensity * 0.6 }, // 外层光晕强度稍低
+      sparkleSpeed: { value: config.sparkleSpeed }
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -1058,6 +1087,7 @@ function createSpiralRibbon() {
       uniform float time;
       uniform vec3 glowColor;
       uniform float glowIntensity;
+      uniform float sparkleSpeed;
       
       varying vec3 vWorldPosition;
       varying vec3 vNormal;
@@ -1076,19 +1106,30 @@ function createSpiralRibbon() {
         float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.5);
         fresnel = smoothstep(0.0, 1.0, fresnel);
         
-        // 沿长度方向的波动效果
-        float wave = sin(vUv.x * 20.0 + time * 2.0) * 0.5 + 0.5;
-        wave = pow(wave, 3.0);
+        // 沿长度方向的波动效果 - 增强闪光感
+        float wave = sin(vUv.x * 20.0 + time * sparkleSpeed * 0.5) * 0.5 + 0.5;
+        wave = pow(wave, 2.5);
+        
+        // 添加闪光效果到辉光层
+        float sparkle = sin(vUv.x * 40.0 + time * sparkleSpeed * 2.0) * 0.5 + 0.5;
+        sparkle = pow(sparkle, 4.0);
+        
+        // 快速闪光点
+        float quickSparkle = sin(vUv.x * 70.0 + time * sparkleSpeed * 3.5) * 0.5 + 0.5;
+        quickSparkle = pow(quickSparkle, 8.0);
+        
+        // 组合闪光效果
+        float totalSparkle = sparkle * 0.6 + quickSparkle * 0.4;
         
         // 构建辉光颜色（纯白色辉光）
         vec3 finalGlow = glowColor * glowIntensity;
         
-        // 结合所有效果
-        float finalAlpha = edgeFade * (0.3 + fresnel * 0.4 + wave * 0.3);
-        finalAlpha = min(finalAlpha, 0.4); // 限制最大透明度，保持柔和
+        // 结合所有效果 - 添加闪光增强
+        float finalAlpha = edgeFade * (0.3 + fresnel * 0.4 + wave * 0.2 + totalSparkle * 0.1);
+        finalAlpha = min(finalAlpha, 0.5); // 稍微提高最大透明度，让闪光更明显
         
-        // 增强边缘亮度
-        finalGlow *= (1.0 + fresnel * 0.5);
+        // 增强边缘亮度和闪光效果
+        finalGlow *= (1.0 + fresnel * 0.5 + totalSparkle * 0.8);
         
         gl_FragColor = vec4(finalGlow, finalAlpha);
       }

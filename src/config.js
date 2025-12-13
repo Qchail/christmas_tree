@@ -140,13 +140,13 @@ export const particleConfig = {
   spiralRibbon: {
     enabled: true,        // 是否启用螺旋光带
     turns: 3.5,          // 螺旋圈数（增加圈数，更完整地缠绕）
-    width: 0.18,         // 丝带宽度（稍微加宽，更明显）
+    width: 0.12,         // 丝带宽度（稍微加宽，更明显）
     height: 0.015,       // 丝带厚度（扁平，模拟真实丝带）
-    color: 0xE8E8E8,     // 高级银白色基础颜色（更亮的银白色）
-    glowColor: 0xFFFFFF, // 辉光颜色（纯白，创造高级感）
+    color: 0xFFD700,     // 金黄色基础颜色（标准金色）
+    glowColor: 0xFFE87C, // 辉光颜色（亮金色，创造温暖的高级感）
     glowIntensity: 3.5,  // 辉光强度（增强发光效果）
-    sparkleSpeed: 3.0,   // 闪光速度（更快的闪光，更奢华）
-    sparkleIntensity: 2.0, // 闪光强度（增强闪光效果）
+    sparkleSpeed: 4.5,   // 闪光速度（更快的闪光，布灵布灵效果）
+    sparkleIntensity: 3.5, // 闪光强度（大幅增强闪光效果，创造布灵布灵感）
     offset: 0.15         // 距离树表面的偏移量（稍微远离，更明显）
   }
 };
