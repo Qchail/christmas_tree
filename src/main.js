@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { particleConfig } from './config.js';
+import { GestureController } from './gesture.js';
 
 console.log('Three.js 版本:', THREE.REVISION);
 
@@ -2856,4 +2857,19 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// 初始化手势控制
+document.addEventListener('DOMContentLoaded', () => {
+  // 延迟初始化，确保 MediaPipe 脚本加载完成
+  setTimeout(() => {
+    // 移除所有交互回调，仅保留骨架显示功能
+    const gestureController = new GestureController({});
+
+    // 点击小窗切换开启/关闭状态
+    const gestureContainer = document.getElementById('gesture-container');
+    gestureContainer.addEventListener('click', () => {
+      gestureController.toggle();
+    });
+  }, 1000);
 });
