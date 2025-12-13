@@ -121,7 +121,7 @@ export const particleConfig = {
     metalness: 1.0,      // 金属度 (拉满，最强金属质感)
     roughness: 0.0,      // 粗糙度 (拉低，如镜面般光滑)
     emissive: 0xFFFF00,  // 自发光颜色 (与五角星一致)
-    emissiveIntensity: 1 // 自发光强度 (高强度，保证在黑暗中也闪亮)
+    emissiveIntensity: 3.0 // 自发光强度 (大幅增强，产生刺眼反光)
   },
 
   // ========== 红色小球装饰 ==========
@@ -130,10 +130,10 @@ export const particleConfig = {
     count: 10,           // 数量比金球多一些
     radius: 0.25,        // 半径 (与金球一致)
     color: 0xFF0000,     // 颜色 (纯红)
-    metalness: 0.9,      // 金属度
-    roughness: 0.1,      // 粗糙度
+    metalness: 1.0,      // 金属度 (拉满，最强反光)
+    roughness: 0.0,      // 粗糙度 (拉低，如镜面般光滑)
     emissive: 0xFF0000,  // 自发光颜色 (红色)
-    emissiveIntensity: 1.5 // 自发光强度 (红色比较暗，需要更高的强度)
+    emissiveIntensity: 3.5 // 自发光强度 (大幅增强，产生刺眼反光)
   },
 
   // ========== 蓝色小球装饰 ==========
@@ -142,10 +142,10 @@ export const particleConfig = {
     count: 10,           // 数量 (与红色小球一致)
     radius: 0.25,        // 半径 (与红色小球一致)
     color: 0x0080FF,     // 颜色 (蓝色)
-    metalness: 0.9,      // 金属度
-    roughness: 0.1,      // 粗糙度
+    metalness: 1.0,      // 金属度 (拉满，最强反光)
+    roughness: 0.0,      // 粗糙度 (拉低，如镜面般光滑)
     emissive: 0x0080FF,  // 自发光颜色 (蓝色)
-    emissiveIntensity: 1.5 // 自发光强度
+    emissiveIntensity: 3.5 // 自发光强度 (大幅增强，产生刺眼反光)
   },
 
   // ========== 螺旋光带参数 ==========

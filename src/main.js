@@ -1193,14 +1193,14 @@ function createOrnamentGroup(config) {
   const count = config.count;
   const geometry = new THREE.SphereGeometry(config.radius, 32, 32);
 
-  // 材质
+  // 材质（增强反光效果）
   const material = new THREE.MeshStandardMaterial({
     color: config.color,
     metalness: config.metalness,
     roughness: config.roughness,
     emissive: config.emissive,
     emissiveIntensity: config.emissiveIntensity,
-    envMapIntensity: 1.0
+    envMapIntensity: 3.0 // 大幅增强环境反射强度，产生刺眼反光
   });
 
   // 光晕材质 - 需要针对不同颜色创建不同的纹理或复用纹理但改变颜色
@@ -1217,9 +1217,10 @@ function createOrnamentGroup(config) {
   const b = Math.floor(colorObj.b * 255);
 
   const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // 中心白亮
-  gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.8)`); // 中间主体色
-  gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.3)`); // 外部微光
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // 中心白亮（刺眼）
+  gradient.addColorStop(0.1, 'rgba(255, 255, 255, 1)'); // 保持中心极亮
+  gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 1.0)`); // 中间主体色（增强亮度）
+  gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.6)`); // 外部光晕（增强）
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // 边缘透明
 
   context.fillStyle = gradient;
@@ -1232,7 +1233,7 @@ function createOrnamentGroup(config) {
     color: 0xFFFFFF, // 纹理自带颜色，这里设为白即可
     transparent: true,
     blending: THREE.AdditiveBlending,
-    opacity: 1.0
+    opacity: 1.5 // 增强不透明度，让光晕更刺眼
   });
 
   const group = new THREE.Group();
@@ -1266,11 +1267,11 @@ function createOrnamentGroup(config) {
 
     group.add(mesh);
 
-    // 2. 创建光晕 Sprite
+    // 2. 创建光晕 Sprite（增强反光效果）
     const sprite = new THREE.Sprite(glowMaterial);
     sprite.position.set(x, y, z);
-    // 光晕大小
-    const glowSize = config.radius * 3.5;
+    // 光晕大小（增大光晕，让反光更明显）
+    const glowSize = config.radius * 5.0; // 从3.5增加到5.0，让光晕更大更刺眼
     sprite.scale.set(glowSize, glowSize, 1);
 
     group.add(sprite);
@@ -1674,14 +1675,19 @@ if (ornaments) {
   scene.add(ornaments);
   console.log('圣诞球装饰已创建');
 
-  // 添加一个环境光，让金属球有更好的反光效果
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  // 添加一个环境光，让金属球有更好的反光效果（增强强度产生刺眼反光）
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
   scene.add(ambientLight);
 
-  // 添加一个方向光，制造高光
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  // 添加一个方向光，制造高光（增强强度产生刺眼反光）
+  const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
   dirLight.position.set(5, 10, 7);
   scene.add(dirLight);
+
+  // 添加额外的方向光，从不同角度照射，增强反光效果
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 2.0);
+  dirLight2.position.set(-5, 8, -7);
+  scene.add(dirLight2);
 }
 
 // 创建并添加照片卡片
