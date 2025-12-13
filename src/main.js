@@ -2870,6 +2870,48 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       onGather: () => {
         if (isScattered) toggleScatter();
+      },
+      onPinchStart: (screenX, screenY) => {
+        // 将屏幕坐标转换为归一化设备坐标 (NDC)
+        mouse.x = (screenX / window.innerWidth) * 2 - 1;
+        mouse.y = -(screenY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        // 检测是否捏中了照片卡片
+        if (photoCards) {
+          // 递归检测所有子对象
+          const intersects = raycaster.intersectObjects(photoCards.children, true);
+
+          if (intersects.length > 0) {
+            // 找到第一个命中的对象
+            // 向上查找直到找到包含 imageSrc 的对象 (Group 或 Mesh)
+            let target = intersects[0].object;
+            let imageSrc = null;
+
+            while (target) {
+              if (target.userData && target.userData.imageSrc) {
+                imageSrc = target.userData.imageSrc;
+                break;
+              }
+              target = target.parent;
+              // 防止向上查找超出 photoCards 范围
+              if (target === photoCards || target === scene) break;
+            }
+
+            if (imageSrc) {
+              openPhotoOverlay(imageSrc);
+              return true; // 告诉 gesture.js 我们处理了交互，阻止默认拖拽
+            }
+          }
+        }
+        return false;
+      },
+      onPinchEnd: () => {
+        // 松开手指时关闭照片
+        if (overlay && overlay.classList.contains('active')) {
+          closePhotoOverlay();
+        }
       }
     });
 
