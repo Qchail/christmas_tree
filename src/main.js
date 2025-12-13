@@ -2863,8 +2863,15 @@ window.addEventListener('resize', () => {
 document.addEventListener('DOMContentLoaded', () => {
   // 延迟初始化，确保 MediaPipe 脚本加载完成
   setTimeout(() => {
-    // 移除所有交互回调，仅保留骨架显示功能
-    const gestureController = new GestureController({});
+    // 初始化手势控制
+    const gestureController = new GestureController({
+      onScatter: () => {
+        if (!isScattered) toggleScatter();
+      },
+      onGather: () => {
+        if (isScattered) toggleScatter();
+      }
+    });
 
     // 点击小窗切换开启/关闭状态
     const gestureContainer = document.getElementById('gesture-container');

@@ -7,8 +7,10 @@ export class GestureController {
     this.statusElement = document.getElementById('gesture-status');
     this.cursorElement = document.getElementById('virtual-cursor');
 
-    // 仅用于显示骨架，不需要回调交互
-    this.callbacks = {};
+    this.callbacks = {
+      onScatter: options.onScatter || (() => { }),
+      onGather: options.onGather || (() => { })
+    };
 
     this.hands = null;
     this.camera = null;
@@ -22,6 +24,9 @@ export class GestureController {
     this.targetY = 0;
     this.isClicking = false;
     this.smoothingFactor = 0.3;
+
+    // 手势状态追踪
+    this.lastGesture = 'NONE'; // NONE, FIST, OPEN
 
     this.init();
   }
@@ -168,8 +173,8 @@ export class GestureController {
       Math.pow(indexTip.y - thumbTip.y, 2)
     );
 
-    // 捏合阈值 (经验值，约 0.05)
-    const pinchThreshold = 0.05;
+    // 捏合阈值
+    const pinchThreshold = 0.03;
     const isPinching = dist < pinchThreshold;
 
     // 3. 触发鼠标/指针事件
@@ -190,6 +195,67 @@ export class GestureController {
     // 始终触发移动
     this.dispatchEvent('pointermove', this.cursorX, this.cursorY);
     this.dispatchEvent('mousemove', this.cursorX, this.cursorY);
+
+    // 4. 识别手势状态 (握拳/伸掌)
+    this.detectAndTriggerGesture(landmarks);
+  }
+
+  detectAndTriggerGesture(landmarks) {
+    const gesture = this.detectHandPose(landmarks);
+
+    // 状态变更触发事件
+    if (gesture !== this.lastGesture) {
+      // 握拳 -> 伸掌 : 散开
+      if (this.lastGesture === 'FIST' && gesture === 'OPEN') {
+        this.showStatus('识别: 散开');
+        this.callbacks.onScatter();
+      }
+
+      // 伸掌 -> 握拳 : 聚拢
+      if (this.lastGesture === 'OPEN' && gesture === 'FIST') {
+        this.showStatus('识别: 聚拢');
+        this.callbacks.onGather();
+      }
+
+      this.lastGesture = gesture;
+    }
+  }
+
+  detectHandPose(landmarks) {
+    // 判断手指弯曲状态
+    const fingers = [8, 12, 16, 20]; // 食指、中指、无名指、小指
+    let bentCount = 0;
+    const wrist = landmarks[0];
+
+    for (let tipIdx of fingers) {
+      const pipIdx = tipIdx - 2; // PIP 是 TIP 的前两个点
+
+      // 简单距离比较：如果指尖到手腕的距离 < 关节到手腕的距离，认为是弯曲
+      const distTip = this.calculateDistance(landmarks[tipIdx], wrist);
+      const distPip = this.calculateDistance(landmarks[pipIdx], wrist);
+
+      if (distTip < distPip) {
+        bentCount++;
+      }
+    }
+
+    if (bentCount >= 3) return 'FIST'; // 大部分手指弯曲 -> 握拳
+    if (bentCount <= 1) return 'OPEN'; // 大部分手指伸直 -> 伸掌
+    return 'UNKNOWN';
+  }
+
+  calculateDistance(p1, p2) {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+  }
+
+  showStatus(text) {
+    this.statusElement.style.display = 'block';
+    this.statusElement.textContent = text;
+    setTimeout(() => {
+      if (this.isActive && this.statusElement.textContent === text) {
+        this.statusElement.style.display = 'none';
+      }
+    }, 1000);
   }
 
   dispatchEvent(type, x, y) {
