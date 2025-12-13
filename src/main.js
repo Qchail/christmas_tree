@@ -553,9 +553,11 @@ function createSnowSystem() {
   const sizes = new Float32Array(count);
   const opacities = new Float32Array(count);
   const drifts = new Float32Array(count); // 水平飘动参数
+  const landed = new Uint8Array(count); // 标记哪些雪花已经落地（0=未落地，1=已落地）
 
   const range = particleConfig.snow.range;
   const height = particleConfig.snow.height;
+  const groundLevel = 0; // 地面高度
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3;
@@ -570,6 +572,7 @@ function createSnowSystem() {
     sizes[i] = particleConfig.snow.size.min + Math.random() * (particleConfig.snow.size.max - particleConfig.snow.size.min);
     opacities[i] = particleConfig.snow.opacity.min + Math.random() * (particleConfig.snow.opacity.max - particleConfig.snow.opacity.min);
     drifts[i] = Math.random() * Math.PI * 2;
+    landed[i] = 0; // 初始都未落地
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -577,6 +580,10 @@ function createSnowSystem() {
   geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('opacity', new THREE.BufferAttribute(opacities, 1));
   geometry.setAttribute('drift', new THREE.BufferAttribute(drifts, 1));
+
+  // 将landed数组存储到geometry的userData中，供动画循环使用
+  geometry.userData.landed = landed;
+  geometry.userData.groundLevel = groundLevel;
 
   // 使用自定义Shader实现朦胧雪花
   const material = new THREE.ShaderMaterial({
@@ -1280,12 +1287,19 @@ function animate() {
     const count = snowSystem.geometry.attributes.position.count;
     const height = particleConfig.snow.height;
     const range = particleConfig.snow.range;
+    const landed = snowSystem.geometry.userData.landed;
+    const groundLevel = snowSystem.geometry.userData.groundLevel || 0;
 
     // 更新时间 uniform 供 shader 使用（如果需要）
     // snowSystem.material.uniforms.time.value += 0.01;
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
+
+      // 如果雪花已经落地，跳过更新
+      if (landed[i] === 1) {
+        continue;
+      }
 
       // 下落
       positions[i3 + 1] -= velocities[i];
@@ -1294,11 +1308,13 @@ function animate() {
       positions[i3] += Math.sin(Date.now() * 0.001 + drifts[i]) * 0.02;
       positions[i3 + 2] += Math.cos(Date.now() * 0.001 + drifts[i]) * 0.02;
 
-      // 循环
-      if (positions[i3 + 1] < 0) {
-        positions[i3 + 1] = height;
-        positions[i3] = (Math.random() - 0.5) * range;
-        positions[i3 + 2] = (Math.random() - 0.5) * range;
+      // 检查是否落地
+      if (positions[i3 + 1] <= groundLevel) {
+        // 固定在地面高度
+        positions[i3 + 1] = groundLevel;
+        // 标记为已落地
+        landed[i] = 1;
+        // 停止飘动（不再更新水平位置）
       }
     }
 
