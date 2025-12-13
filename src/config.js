@@ -184,7 +184,9 @@ export const particleConfig = {
       normalSpeed: -1.5,       // 正常旋转速度（负值实现画面逆时针旋转，绝对值越大越快）
       scatteredSpeed: -5      // 散开时的旋转速度（元素散开时加快旋转）
     },
-    scatteredScale: 1.5       // 散开时的画面缩放倍数（元素散开时整体画面缩小）
+    scatteredScale: 1.5,       // 散开时的画面缩放倍数（元素散开时整体画面缩小）
+    scatteredY: 1.2,          // 散开时的相机 Y 坐标
+    scatteredPolarAngle: 120   // 散开时的相机俯仰角 (度)
   },
 
   // ========== 散开/聚集动画参数 ==========

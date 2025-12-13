@@ -323,6 +323,27 @@ controls.minDistance = 5;
 controls.maxDistance = 30;
 controls.target.set(0, 4, 0);
 
+// 监听相机变化并打印信息（节流防止刷屏）
+let lastLogTime = 0;
+controls.addEventListener('change', () => {
+  const now = Date.now();
+  // 限制打印频率为每 500ms 一次
+  if (now - lastLogTime > 500) {
+    const pos = camera.position;
+    // 获取 OrbitControls 的角度信息
+    const polarAngle = controls.getPolarAngle(); // 俯仰角 (0=顶视图, PI=底视图)
+    const azimuthalAngle = controls.getAzimuthalAngle(); // 方位角 (水平旋转)
+
+    console.log(
+      `[相机监控] ` +
+      `位置: { x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)} } | ` +
+      `俯仰角: ${(polarAngle * 180 / Math.PI).toFixed(1)}° | ` +
+      `方位角: ${(azimuthalAngle * 180 / Math.PI).toFixed(1)}°`
+    );
+    lastLogTime = now;
+  }
+});
+
 // 开启自动旋转
 controls.autoRotate = particleConfig.camera.autoRotate.enabled;
 const originalAutoRotateSpeed = particleConfig.camera.autoRotate.normalSpeed; // 原始旋转速度
@@ -2015,6 +2036,19 @@ function saveOriginalPositions() {
 
   // 保存原始相机位置
   originalPositions.camera = camera.position.clone();
+
+  // 保存原始球坐标信息（Radius, Polar）
+  const vec = new THREE.Vector3().subVectors(camera.position, controls.target);
+  const radius = vec.length();
+  // 计算 Polar Angle (phi)
+  // y = radius * cos(phi) => phi = acos(y/radius)
+  // 注意：这里 y 是相对于 target 的 y
+  const phi = Math.acos(vec.y / radius);
+
+  originalPositions.cameraSpherical = {
+    radius: radius,
+    phi: phi
+  };
 }
 
 // 生成散开位置
@@ -2331,31 +2365,65 @@ function updateScatterAnimation() {
       controls.autoRotateSpeed = scatteredAutoRotateSpeed + (originalAutoRotateSpeed - scatteredAutoRotateSpeed) * easedScatterProgress;
     }
 
-    // 更新相机位置（画面缩放）
-    if (originalPositions.camera) {
-      const scatteredCameraScale = particleConfig.camera.scatteredScale || 0.8;
+    // 更新相机位置（画面缩放和视角变化）
+    if (originalPositions.camera && originalPositions.cameraSpherical) {
       const target = controls.target;
 
-      // 计算从目标点到原始相机位置的向量（只为了获取原始距离）
-      const originalDirection = new THREE.Vector3().subVectors(originalPositions.camera, target);
-      const originalDistance = originalDirection.length();
+      // 1. 获取原始球坐标参数
+      const originalRadius = originalPositions.cameraSpherical.radius;
+      const originalPhi = originalPositions.cameraSpherical.phi;
 
-      // 计算目标距离（散开时缩小）
-      const targetDistance = originalDistance * scatteredCameraScale;
+      // 2. 计算目标球坐标参数
+      const targetY = particleConfig.camera.scatteredY || 1.5;
+      const targetPhiDegree = particleConfig.camera.scatteredPolarAngle || 120;
+      const targetPhi = targetPhiDegree * Math.PI / 180;
 
-      // 根据动画进度插值距离
-      let currentDistance;
-      if (isScattered) {
-        // 散开：从原始距离缩小到目标距离
-        currentDistance = originalDistance + (targetDistance - originalDistance) * easedScatterProgress;
+      // 根据目标 Y 和目标 Phi 反推目标 Radius
+      // cameraY = target.y + radius * cos(phi)
+      // radius = (cameraY - target.y) / cos(phi)
+      let targetRadius;
+      const cosTargetPhi = Math.cos(targetPhi);
+
+      // 避免除以接近0的数
+      if (Math.abs(cosTargetPhi) < 0.001) {
+        // 如果目标是水平视角(90度)，使用配置的 scatteredScale 来决定距离
+        targetRadius = originalRadius * (particleConfig.camera.scatteredScale || 1.5);
       } else {
-        // 聚集：从缩小距离恢复到原始距离
-        currentDistance = targetDistance + (originalDistance - targetDistance) * easedScatterProgress;
+        targetRadius = (targetY - target.y) / cosTargetPhi;
+        // 确保半径为正 (如果算出来是负的，说明目标Y和角度在几何上需要反向，OrbitControls会自动处理，但我们需要正确的半径长度)
+        targetRadius = Math.abs(targetRadius);
       }
 
-      // 使用当前相机方向，而不是原始方向，以允许同时进行旋转动画
-      const currentDirection = new THREE.Vector3().subVectors(camera.position, target).normalize();
-      camera.position.copy(target).add(currentDirection.multiplyScalar(currentDistance));
+      // 3. 插值计算当前的球坐标参数
+      let currentRadius, currentPhi;
+
+      if (isScattered) {
+        // 散开：从原始状态过渡到目标状态
+        currentRadius = originalRadius + (targetRadius - originalRadius) * easedScatterProgress;
+        currentPhi = originalPhi + (targetPhi - originalPhi) * easedScatterProgress;
+      } else {
+        // 聚集：从目标状态恢复到原始状态
+        currentRadius = targetRadius + (originalRadius - targetRadius) * easedScatterProgress;
+        currentPhi = targetPhi + (originalPhi - targetPhi) * easedScatterProgress;
+      }
+
+      // 4. 获取当前的方位角 (由 OrbitControls 自动旋转控制)
+      const currentTheta = controls.getAzimuthalAngle();
+
+      // 5. 将球坐标转换为笛卡尔坐标并设置相机位置
+      // x = target.x + radius * sin(phi) * sin(theta)
+      // y = target.y + radius * cos(phi)
+      // z = target.z + radius * sin(phi) * cos(theta)
+      const sinPhi = Math.sin(currentPhi);
+      const cosPhi = Math.cos(currentPhi);
+      const sinTheta = Math.sin(currentTheta);
+      const cosTheta = Math.cos(currentTheta);
+
+      camera.position.set(
+        target.x + currentRadius * sinPhi * sinTheta,
+        target.y + currentRadius * cosPhi,
+        target.x + currentRadius * sinPhi * cosTheta
+      );
     }
   }
 
@@ -2404,27 +2472,12 @@ function updateScatterAnimation() {
         }
       });
     }
-    // 确保相机位置状态正确
+    // 确保相机位置状态正确 (移除旧逻辑，完全依赖插值结果，避免与动态旋转冲突)
+    /*
     if (originalPositions.camera) {
-      const scatteredCameraScale = particleConfig.camera.scatteredScale || 0.8;
-      const target = controls.target;
-      const originalDirection = new THREE.Vector3().subVectors(originalPositions.camera, target);
-      const originalDistance = originalDirection.length();
-
-      // 计算最终距离
-      let finalDistance;
-      if (isScattered) {
-        // 散开状态：相机拉近
-        finalDistance = originalDistance * scatteredCameraScale;
-      } else {
-        // 聚集状态：恢复原始距离
-        finalDistance = originalDistance;
-      }
-
-      // 使用当前方向设置最终距离，保持旋转角度
-      const currentDirection = new THREE.Vector3().subVectors(camera.position, target).normalize();
-      camera.position.copy(target).add(currentDirection.multiplyScalar(finalDistance));
+       // ... 旧逻辑已移除 ...
     }
+    */
     // 确保光源位置在动画结束时被正确更新
     if (starLight && star) {
       starLight.position.copy(star.position);
