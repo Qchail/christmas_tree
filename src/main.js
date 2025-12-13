@@ -1374,7 +1374,7 @@ function createSpiralRibbon() {
       glowIntensity: { value: config.glowIntensity },
       sparkleSpeed: { value: config.sparkleSpeed },
       sparkleIntensity: { value: config.sparkleIntensity },
-      fadeProgress: { value: 0.0 } // 渐变进度：0=完全显示，1=完全消失
+      fadeProgress: { value: -1.0 } // 渐变进度：0=完全显示，1=完全消失，-1=完全消失（初始状态）
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -1553,7 +1553,7 @@ function createSpiralRibbon() {
       glowColor: { value: new THREE.Color(config.glowColor) },
       glowIntensity: { value: config.glowIntensity * 0.6 }, // 外层光晕强度稍低
       sparkleSpeed: { value: config.sparkleSpeed },
-      fadeProgress: { value: 0.0 } // 渐变进度
+      fadeProgress: { value: -1.0 } // 渐变进度（初始状态：完全消失）
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -1869,6 +1869,11 @@ if (spiralRibbon) {
   console.log('螺旋光带已创建');
 }
 
+// ========== 初始光带出现动画 ==========
+const initialRibbonFadeDuration = 2000; // 初始光带出现动画持续时间（毫秒）
+let initialRibbonAnimationStartTime = Date.now();
+let isInitialRibbonAnimating = true; // 初始动画是否正在进行
+
 // ========== 散开/聚集动画系统 ==========
 let isScattered = false; // 当前状态：false=聚集，true=散开
 let animationProgress = 0; // 动画进度 0-1
@@ -2046,6 +2051,36 @@ function saveCurrentScatteredPositions() {
 // 缓动函数（ease in out）
 function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// 更新初始光带出现动画
+function updateInitialRibbonAnimation() {
+  if (!isInitialRibbonAnimating || !spiralRibbon) return;
+
+  const currentTime = Date.now();
+  const elapsed = currentTime - initialRibbonAnimationStartTime;
+  const progress = Math.min(elapsed / initialRibbonFadeDuration, 1);
+  const easedProgress = easeInOutCubic(progress);
+
+  // fadeProgress 从 -1.0 到 0.0（从头部到尾部逐渐出现）
+  const fadeProgressValue = -1.0 + easedProgress;
+
+  spiralRibbon.children.forEach((child) => {
+    if (child.material && child.material.uniforms) {
+      child.material.uniforms.fadeProgress.value = fadeProgressValue;
+    }
+  });
+
+  // 动画结束
+  if (progress >= 1) {
+    isInitialRibbonAnimating = false;
+    // 确保最终值为 0
+    spiralRibbon.children.forEach((child) => {
+      if (child.material && child.material.uniforms) {
+        child.material.uniforms.fadeProgress.value = 0.0;
+      }
+    });
+  }
 }
 
 // 更新动画
@@ -2247,6 +2282,11 @@ window.addEventListener('keydown', (event) => {
 // 动画循环
 function animate() {
   requestAnimationFrame(animate);
+
+  // 更新初始光带出现动画（如果正在进行）
+  if (isInitialRibbonAnimating) {
+    updateInitialRibbonAnimation();
+  }
 
   // 更新散开/聚集动画
   updateScatterAnimation();
