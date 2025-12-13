@@ -1083,7 +1083,25 @@ function createPhotoCards() {
     // 1. 创建卡片组（包含边框和照片）
     const cardGroup = new THREE.Group();
 
-    // 2. 创建白色边框（背景）
+    // 2. 创建金色外边框（高级边框效果）
+    const borderThickness = 0.025; // 边框厚度（稍微加厚，更明显）
+    const goldFrameGeometry = new THREE.PlaneGeometry(
+      cardWidth + borderThickness * 2,
+      cardHeight + borderThickness * 2
+    );
+    const goldFrameMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFD700, // 金色
+      side: THREE.DoubleSide,
+      emissive: 0xFFD700, // 自发光，让边框更亮
+      emissiveIntensity: 1.2 // 增强发光强度，让边框更醒目
+    });
+    const goldFrame = new THREE.Mesh(goldFrameGeometry, goldFrameMaterial);
+    // 翻转边框，让金色边框朝向树中心（内侧）
+    goldFrame.rotateY(Math.PI);
+    goldFrame.position.z = -0.002; // 稍微靠后，作为背景层
+    cardGroup.add(goldFrame);
+
+    // 3. 创建白色边框（背景）
     const frameGeometry = new THREE.PlaneGeometry(cardWidth, cardHeight);
     const frameMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -1092,14 +1110,15 @@ function createPhotoCards() {
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     // 翻转边框，让白色背景朝向树中心（内侧）
     frame.rotateY(Math.PI);
+    frame.position.z = -0.001; // 在金色边框前面
     cardGroup.add(frame);
 
-    // 3. 加载照片纹理
+    // 4. 加载照片纹理
     const texture = loader.load(photoData.src);
     // 确保纹理不过度拉伸，这里简单处理，实际可根据图片比例调整
     texture.colorSpace = THREE.SRGBColorSpace;
 
-    // 4. 创建照片部分
+    // 5. 创建照片部分
     const photoGeometry = new THREE.PlaneGeometry(photoSize, photoSize);
     const photoMaterial = new THREE.MeshBasicMaterial({
       map: texture,
@@ -1120,10 +1139,15 @@ function createPhotoCards() {
       imageSrc: photoData.src,
       parentGroup: cardGroup
     };
+    goldFrame.userData = { // 金色边框也加上，方便点击判定
+      isPhoto: true,
+      imageSrc: photoData.src,
+      parentGroup: cardGroup
+    };
 
     cardGroup.add(photo);
 
-    // 5. 围绕圣诞树均匀分布
+    // 6. 围绕圣诞树均匀分布
     // 高度随机分布
     const y = Math.random() * (treeHeight * 0.7) + treeHeight * 0.15; // 避开最顶部和最底部
     const currentRadius = baseRadius * (1 - y / treeHeight);
@@ -1137,7 +1161,7 @@ function createPhotoCards() {
 
     cardGroup.position.set(x, y, z);
 
-    // 6. 竖直悬挂，图片朝外，白色背景朝内
+    // 7. 竖直悬挂，图片朝外，白色背景朝内
     // 使用 lookAt 让卡片正面（+Z）直接朝向外部（沿半径向外）
     // 目标点设为当前位置沿半径向外延伸的点（保持y不变以保持竖直）
     cardGroup.lookAt(x * 2, y, z * 2);
