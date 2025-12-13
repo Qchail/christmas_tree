@@ -325,7 +325,7 @@ controls.target.set(0, 4, 0);
 
 // 开启自动旋转
 controls.autoRotate = true;
-controls.autoRotateSpeed = -1.0; // 负值实现画面逆时针旋转（相机顺时针公转），数值越小越慢
+controls.autoRotateSpeed = -1.2; // 负值实现画面逆时针旋转（相机顺时针公转），数值越小越慢
 
 // 保存原始的鼠标按钮配置
 // OrbitControls 中：0 = ROTATE, 1 = DOLLY, 2 = PAN
@@ -2145,22 +2145,10 @@ function updateScatterAnimation() {
   if (scatterProgress > 0 && star && originalPositions.star) {
     if (isScattered && scatteredPositions.star) {
       star.position.lerpVectors(originalPositions.star, scatteredPositions.star, easedScatterProgress);
-      if (star.children && star.children.length > 0) {
-        star.children.forEach(child => {
-          if (child instanceof THREE.Sprite) {
-            child.position.copy(star.position);
-          }
-        });
-      }
+      // sprite 是 Group 的子对象，其本地位置应该保持为 (0, 0, 0)，不需要更新
     } else if (!isScattered && scatteredPositions.star) {
       star.position.lerpVectors(scatteredPositions.star, originalPositions.star, easedScatterProgress);
-      if (star.children && star.children.length > 0) {
-        star.children.forEach(child => {
-          if (child instanceof THREE.Sprite) {
-            child.position.copy(star.position);
-          }
-        });
-      }
+      // sprite 是 Group 的子对象，其本地位置应该保持为 (0, 0, 0)，不需要更新
     }
   }
 
@@ -2229,6 +2217,10 @@ function updateScatterAnimation() {
   // 更新光源位置（如果五角星移动）
   if (starLight && star) {
     starLight.position.copy(star.position);
+    // 立即更新着色器中的光源位置
+    if (particleCone.material instanceof THREE.ShaderMaterial && particleConfig.star.light.enabled) {
+      particleCone.material.uniforms.starLightPosition.value.copy(starLight.position);
+    }
   }
 
   if (totalProgress >= 1) {
@@ -2245,6 +2237,13 @@ function updateScatterAnimation() {
           child.material.uniforms.fadeProgress.value = finalFadeProgress;
         }
       });
+    }
+    // 确保光源位置在动画结束时被正确更新
+    if (starLight && star) {
+      starLight.position.copy(star.position);
+      if (particleCone.material instanceof THREE.ShaderMaterial && particleConfig.star.light.enabled) {
+        particleCone.material.uniforms.starLightPosition.value.copy(starLight.position);
+      }
     }
   }
 }
