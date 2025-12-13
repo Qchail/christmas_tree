@@ -1870,14 +1870,14 @@ if (spiralRibbon) {
 }
 
 // ========== 初始光带出现动画 ==========
-const initialRibbonFadeDuration = 2000; // 初始光带出现动画持续时间（毫秒）
+const initialRibbonFadeDuration = particleConfig.spiralRibbon.animation.initialFadeDuration; // 初始光带出现动画持续时间（毫秒）
 let initialRibbonAnimationStartTime = Date.now();
 let isInitialRibbonAnimating = true; // 初始动画是否正在进行
 
 // ========== 散开/聚集动画系统 ==========
 let isScattered = false; // 当前状态：false=聚集，true=散开
 let animationProgress = 0; // 动画进度 0-1
-const ribbonFadeDuration = 1000; // 光带渐变持续时间（毫秒）
+const ribbonFadeDuration = particleConfig.spiralRibbon.animation.fadeDuration; // 光带渐变持续时间（毫秒）
 const scatterDuration = 1500; // 元素散开持续时间（毫秒）
 const totalAnimationDuration = ribbonFadeDuration + scatterDuration; // 总动画时间
 let animationStartTime = 0;

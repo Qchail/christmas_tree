@@ -159,7 +159,12 @@ export const particleConfig = {
     glowIntensity: 3.5,  // 辉光强度（增强发光效果）
     sparkleSpeed: 4.5,   // 闪光速度（更快的闪光，布灵布灵效果）
     sparkleIntensity: 3.5, // 闪光强度（大幅增强闪光效果，创造布灵布灵感）
-    offset: 0.15         // 距离树表面的偏移量（稍微远离，更明显）
+    offset: 0.15,        // 距离树表面的偏移量（稍微远离，更明显）
+    // 动画时长参数（单位：毫秒）
+    animation: {
+      initialFadeDuration: 1000,  // 初始光带出现动画时长（页面加载时）
+      fadeDuration: 500          // 散开/聚集时光带消失和出现的动画时长
+    }
   },
 
   // ========== 照片卡片参数 ==========
