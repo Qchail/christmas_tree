@@ -180,7 +180,13 @@ export const particleConfig = {
     photoSize: 0.7,      // 照片大小
     scatteredScale: 4,   // 散开时的缩放倍数（元素散开时照片卡片放大）
     maxPhotos: 40,       // 最多可上传的照片数量
-    maxFileSize: 25      // 单张照片最大大小（MB）
+    maxFileSize: 25,     // 单张照片最大大小（MB）
+    // 图片压缩设置
+    compression: {
+      maxWidth: 2048,    // 压缩后的最大宽度 (从800提升到2048，大幅提高清晰度)
+      maxHeight: 2048,   // 压缩后的最大高度
+      quality: 1     // 压缩质量 (0-1，从0.8提升到0.92，减少压缩失真)
+    }
   },
 
   // ========== 相机旋转参数 ==========

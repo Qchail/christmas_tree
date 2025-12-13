@@ -9,32 +9,105 @@ const MAX_PHOTOS = particleConfig.photoCards.maxPhotos || 40;
 const MAX_FILE_SIZE_MB = particleConfig.photoCards.maxFileSize || 25;
 const STORAGE_KEY = 'christmas_tree_photos';
 
+// IndexedDB 配置
+const DB_NAME = 'ChristmasTreeDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'photos';
+
 // 照片存储管理类
 class PhotoManager {
   constructor() {
-    this.photos = this.loadPhotos();
-    this.updateUI();
+    this.photos = [];
+    this.db = null;
+    this.initDB().then(() => {
+      this.loadPhotos();
+    });
   }
 
-  // 从 localStorage 加载照片
-  loadPhotos() {
+  // 初始化 IndexedDB
+  initDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onerror = (event) => {
+        console.error('IndexedDB error:', event.target.error);
+        reject(event.target.error);
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        resolve(this.db);
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        }
+      };
+    });
+  }
+
+  // 加载照片
+  async loadPhotos() {
+    if (!this.db) return;
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const transaction = this.db.transaction([STORE_NAME], 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        this.photos = request.result || [];
+        // 如果 IndexedDB 为空，尝试从 localStorage 迁移数据（一次性）
+        if (this.photos.length === 0) {
+          this.migrateFromLocalStorage();
+        } else {
+          this.updateUI();
+          // 重新创建照片卡片
+          if (window.recreatePhotoCards) {
+            window.recreatePhotoCards();
+          }
+        }
+      };
     } catch (e) {
       console.error('加载照片失败:', e);
-      return [];
     }
   }
 
-  // 保存照片到 localStorage
-  savePhotos() {
+  // 从 localStorage 迁移数据
+  async migrateFromLocalStorage() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.photos));
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const photos = JSON.parse(stored);
+        if (Array.isArray(photos) && photos.length > 0) {
+          console.log('正在从 localStorage 迁移数据...');
+          for (const photo of photos) {
+            await this.addPhotoDataToDB(photo);
+          }
+          this.photos = photos;
+          localStorage.removeItem(STORAGE_KEY); // 迁移后清除
+          this.updateUI();
+          if (window.recreatePhotoCards) {
+            window.recreatePhotoCards();
+          }
+        }
+      }
     } catch (e) {
-      console.error('保存照片失败:', e);
-      alert('照片保存失败，可能是存储空间不足');
+      console.error('迁移数据失败:', e);
     }
+  }
+
+  // 添加照片数据到 DB (底层方法)
+  addPhotoDataToDB(photo) {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.add(photo);
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e.target.error);
+    });
   }
 
   // 添加照片
@@ -63,27 +136,36 @@ class PhotoManager {
       // 压缩图片
       const compressed = await this.compressImage(base64);
 
-      this.photos.push({
+      const photo = {
         id: Date.now() + Math.random(),
         data: compressed,
         name: file.name,
         uploadTime: new Date().toISOString()
-      });
+      };
 
-      this.savePhotos();
+      await this.addPhotoDataToDB(photo);
+      this.photos.push(photo);
       this.updateUI();
       return true;
     } catch (e) {
       console.error('添加照片失败:', e);
-      alert('添加照片失败，请重试');
+      if (e.name === 'QuotaExceededError') {
+        alert('存储空间不足');
+      } else {
+        alert('添加照片失败，请重试');
+      }
       return false;
     }
   }
 
   // 删除照片
   deletePhoto(id) {
+    if (!this.db) return;
+    const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    store.delete(id);
+
     this.photos = this.photos.filter(p => p.id !== id);
-    this.savePhotos();
     this.updateUI();
     // 重新创建照片卡片（延迟执行，确保函数已定义）
     if (window.recreatePhotoCards) {
@@ -93,8 +175,12 @@ class PhotoManager {
 
   // 清空所有照片
   clearAllPhotos() {
+    if (!this.db) return;
+    const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    store.clear();
+
     this.photos = [];
-    this.savePhotos();
     this.updateUI();
     // 重新创建照片卡片（延迟执行，确保函数已定义）
     if (window.recreatePhotoCards) {
@@ -118,7 +204,7 @@ class PhotoManager {
   }
 
   // 压缩图片
-  compressImage(base64, maxWidth = 800, maxHeight = 800, quality = 0.8) {
+  compressImage(base64, maxWidth = particleConfig.photoCards.compression.maxWidth, maxHeight = particleConfig.photoCards.compression.maxHeight, quality = particleConfig.photoCards.compression.quality) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
@@ -1178,6 +1264,7 @@ function createPhotoCards() {
       // onLoad 回调
       function (loadedTexture) {
         if (loadedTexture.image) {
+
           const imgWidth = loadedTexture.image.width;
           const imgHeight = loadedTexture.image.height;
           const imgAspect = imgWidth / imgHeight; // 图片宽高比
@@ -1198,6 +1285,10 @@ function createPhotoCards() {
       }
     );
     texture.colorSpace = THREE.SRGBColorSpace;
+    // 开启各向异性过滤，提高倾斜观察时的清晰度
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.minFilter = THREE.LinearFilter; // 使用线性过滤，避免Mipmap导致的模糊
+    texture.magFilter = THREE.LinearFilter;
 
     // 5. 创建照片部分
     const photoGeometry = new THREE.PlaneGeometry(photoSize, photoSize);
