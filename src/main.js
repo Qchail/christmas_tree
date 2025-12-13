@@ -614,6 +614,123 @@ function createSnowSystem() {
   return new THREE.Points(geometry, material);
 }
 
+// 创建金箔系统
+function createGoldFoilSystem() {
+  if (!particleConfig.goldFoil.enabled) return null;
+
+  const count = particleConfig.goldFoil.count;
+  const geometry = new THREE.BufferGeometry();
+
+  const positions = new Float32Array(count * 3);
+  const velocities = new Float32Array(count);
+  const sizes = new Float32Array(count);
+  const phases = new Float32Array(count); // 用于控制闪烁相位的随机数
+  const drifts = new Float32Array(count);
+
+  const range = particleConfig.goldFoil.range;
+  const height = particleConfig.goldFoil.height;
+
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+
+    positions[i3] = (Math.random() - 0.5) * range;
+    positions[i3 + 1] = Math.random() * height;
+    positions[i3 + 2] = (Math.random() - 0.5) * range;
+
+    velocities[i] = particleConfig.goldFoil.speed.min + Math.random() * (particleConfig.goldFoil.speed.max - particleConfig.goldFoil.speed.min);
+    sizes[i] = particleConfig.goldFoil.size.min + Math.random() * (particleConfig.goldFoil.size.max - particleConfig.goldFoil.size.min);
+    phases[i] = Math.random() * Math.PI * 2;
+    drifts[i] = Math.random() * Math.PI * 2;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 1));
+  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+  geometry.setAttribute('drift', new THREE.BufferAttribute(drifts, 1));
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: new THREE.Color(particleConfig.goldFoil.color) },
+      time: { value: 0 },
+      pointSizeScale: { value: 200.0 }
+    },
+    vertexShader: `
+      attribute float size;
+      attribute float phase;
+      uniform float pointSizeScale;
+      uniform float time;
+      varying float vPhase;
+      
+      void main() {
+        vPhase = phase;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (pointSizeScale / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 color;
+      uniform float time;
+      varying float vPhase;
+      
+      void main() {
+        vec2 center = vec2(0.5, 0.5);
+        // 原始坐标 (-0.5 到 0.5)
+        vec2 coord = gl_PointCoord - center;
+        
+        // 模拟翻转：
+        // 使用两个不同频率的正弦波模拟绕 X 轴和 Y 轴的旋转
+        // rotationX/Y 的范围是 -1 到 1
+        float rotationSpeed = 2.0;
+        float rotX = cos(time * rotationSpeed + vPhase);
+        float rotY = sin(time * rotationSpeed * 0.7 + vPhase);
+        
+        // 应用透视缩放：
+        // 当纸片旋转时，其在屏幕上的投影宽度/高度会变化
+        // 我们反向缩放坐标，如果 coord 超过了缩放后的范围，就 discard
+        
+        // 避免除以0，保持最小厚度
+        float scaleX = abs(rotY) + 0.1; 
+        float scaleY = abs(rotX) + 0.1;
+        
+        // 检查是否在变形后的矩形内
+        if (abs(coord.x) > 0.5 * scaleX || abs(coord.y) > 0.5 * scaleY) discard;
+        
+        // 计算反光
+        // 结合旋转角度，当纸片正对相机时（scale 最大），反光最强
+        // 或者当它快速翻转经过某个角度时反光
+        
+        // 模拟法线方向随旋转变化
+        vec3 normal = normalize(vec3(rotY, rotX, 1.0));
+        vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+        float specular = pow(max(dot(normal, lightDir), 0.0), 10.0);
+        
+        // 基础闪烁
+        float flash = sin(time * 5.0 + vPhase * 2.0);
+        
+        vec3 finalColor = color;
+        
+        // 强烈的高光时刻
+        if (specular > 0.8 || flash > 0.9) {
+           finalColor = mix(color, vec3(1.0), 0.8);
+        } else {
+           // 根据旋转角度产生的明暗变化
+           float shading = 0.5 + 0.5 * max(abs(rotX), abs(rotY));
+           finalColor = color * shading;
+        }
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending // 使用正常混合，体现金属实体感，或者用 Additive 看个人喜好，这里选 Normal 让它看起来像实体碎片
+  });
+
+  return new THREE.Points(geometry, material);
+}
+
 // 通用创建装饰球函数
 function createOrnamentGroup(config) {
   if (!config.enabled) return null;
@@ -773,6 +890,13 @@ if (snowSystem) {
   console.log('雪花系统已创建，数量:', snowSystem.geometry.attributes.position.count);
 }
 
+// 创建并添加金箔系统
+const goldFoilSystem = createGoldFoilSystem();
+if (goldFoilSystem) {
+  scene.add(goldFoilSystem);
+  console.log('金箔系统已创建，数量:', goldFoilSystem.geometry.attributes.position.count);
+}
+
 // 创建并添加圣诞球
 const ornaments = createOrnaments();
 if (ornaments) {
@@ -836,6 +960,38 @@ function animate() {
     }
 
     snowSystem.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // 更新金箔位置
+  if (goldFoilSystem) {
+    const positions = goldFoilSystem.geometry.attributes.position.array;
+    const velocities = goldFoilSystem.geometry.attributes.velocity.array;
+    const drifts = goldFoilSystem.geometry.attributes.drift.array;
+    const count = goldFoilSystem.geometry.attributes.position.count;
+    const height = particleConfig.goldFoil.height;
+    const range = particleConfig.goldFoil.range;
+
+    // 更新 shader 时间
+    goldFoilSystem.material.uniforms.time.value += 0.05; // 闪烁速度
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+
+      // 下落
+      positions[i3 + 1] -= velocities[i];
+
+      // 飘动 (不规则运动)
+      positions[i3] += Math.sin(Date.now() * 0.002 + drifts[i]) * 0.01;
+      positions[i3 + 2] += Math.cos(Date.now() * 0.0015 + drifts[i]) * 0.01;
+
+      // 循环
+      if (positions[i3 + 1] < 0) {
+        positions[i3 + 1] = height;
+        positions[i3] = (Math.random() - 0.5) * range;
+        positions[i3 + 2] = (Math.random() - 0.5) * range;
+      }
+    }
+    goldFoilSystem.geometry.attributes.position.needsUpdate = true;
   }
 
   controls.update();

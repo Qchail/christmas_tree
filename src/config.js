@@ -95,6 +95,23 @@ export const particleConfig = {
     }
   },
 
+  // ========== 金箔碎片参数 ==========
+  goldFoil: {
+    enabled: true,
+    count: 200,          // 数量
+    color: 0xFFD700,     // 金色
+    range: 20.0,         // 分布范围
+    height: 20.0,        // 分布高度
+    size: {
+      min: 0.1,          // 最小大小
+      max: 0.3           // 最大大小
+    },
+    speed: {
+      min: 0.01,         // 下落速度
+      max: 0.03
+    }
+  },
+
   // ========== 圣诞球装饰 ==========
   ornaments: {
     enabled: true,
