@@ -93,6 +93,18 @@ export const particleConfig = {
       min: 0.3,           // 最小透明度
       max: 0.8            // 最大透明度
     }
+  },
+
+  // ========== 圣诞球装饰 ==========
+  ornaments: {
+    enabled: true,
+    count: 35,           // 增加一点数量
+    radius: 0.25,        // 球体半径
+    color: 0xFFD700,     // 表面颜色 (纯金)
+    metalness: 1.0,      // 金属度 (拉满，最强金属质感)
+    roughness: 0.0,      // 粗糙度 (拉低，如镜面般光滑)
+    emissive: 0xFFAA00,  // 自发光颜色 (浓郁的暖金色)
+    emissiveIntensity: 0.8 // 自发光强度 (高强度，保证在黑暗中也闪亮)
   }
 };
 

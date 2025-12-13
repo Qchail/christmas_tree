@@ -576,6 +576,99 @@ function createSnowSystem() {
   return new THREE.Points(geometry, material);
 }
 
+// 创建发光贴图
+function createGlowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext('2d');
+
+  // 径向渐变：中心不透明，边缘透明
+  const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // 中心白亮
+  gradient.addColorStop(0.2, 'rgba(255, 215, 0, 0.8)'); // 中间金黄
+  gradient.addColorStop(0.5, 'rgba(255, 165, 0, 0.3)'); // 外部橙色微光
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // 边缘透明
+
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 64, 64);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+// 创建圣诞球装饰
+function createOrnaments() {
+  if (!particleConfig.ornaments.enabled) return null;
+
+  const count = particleConfig.ornaments.count;
+  const geometry = new THREE.SphereGeometry(particleConfig.ornaments.radius, 32, 32);
+
+  // 金球材质
+  const material = new THREE.MeshStandardMaterial({
+    color: particleConfig.ornaments.color,
+    metalness: particleConfig.ornaments.metalness,
+    roughness: particleConfig.ornaments.roughness,
+    emissive: particleConfig.ornaments.emissive,
+    emissiveIntensity: particleConfig.ornaments.emissiveIntensity,
+    envMapIntensity: 1.0
+  });
+
+  // 光晕材质
+  const glowTexture = createGlowTexture();
+  const glowMaterial = new THREE.SpriteMaterial({
+    map: glowTexture,
+    color: 0xFFD700,
+    transparent: true,
+    blending: THREE.AdditiveBlending, // 加法混合，越叠加越亮
+    opacity: 1.0
+  });
+
+  const group = new THREE.Group();
+  const treeHeight = particleConfig.cone.height;
+  const baseRadius = particleConfig.cone.baseRadius;
+
+  for (let i = 0; i < count; i++) {
+    // 1. 创建实体金球
+    const mesh = new THREE.Mesh(geometry, material);
+
+    // 随机高度 (避开顶部和极底部)
+    const y = Math.random() * (treeHeight * 0.8) + treeHeight * 0.1;
+
+    // 计算当前高度对应的圆锥半径
+    const currentRadius = baseRadius * (1 - y / treeHeight);
+
+    // 随机角度
+    const angle = Math.random() * Math.PI * 2;
+
+    // 计算位置 (放置在表面，稍微向外一点点)
+    const radiusOffset = 0.95;
+    const r = currentRadius * radiusOffset;
+
+    const x = Math.cos(angle) * r;
+    const z = Math.sin(angle) * r;
+
+    mesh.position.set(x, y, z);
+
+    // 随机微小旋转
+    mesh.rotation.x = Math.random() * Math.PI;
+    mesh.rotation.z = Math.random() * Math.PI;
+
+    group.add(mesh);
+
+    // 2. 创建光晕 Sprite
+    const sprite = new THREE.Sprite(glowMaterial);
+    sprite.position.set(x, y, z); // 位置与球体相同
+    // 光晕大小要是球体的 2.5 - 3 倍
+    const glowSize = particleConfig.ornaments.radius * 3.5;
+    sprite.scale.set(glowSize, glowSize, 1);
+
+    group.add(sprite);
+  }
+
+  return group;
+}
+
 // 创建粒子圆锥体
 const particleCone = createParticleCone();
 scene.add(particleCone);
@@ -625,6 +718,22 @@ const snowSystem = createSnowSystem();
 if (snowSystem) {
   scene.add(snowSystem);
   console.log('雪花系统已创建，数量:', snowSystem.geometry.attributes.position.count);
+}
+
+// 创建并添加圣诞球
+const ornaments = createOrnaments();
+if (ornaments) {
+  scene.add(ornaments);
+  console.log('圣诞球装饰已创建，数量:', particleConfig.ornaments.count);
+
+  // 添加一个环境光，让金属球有更好的反光效果
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+
+  // 添加一个方向光，制造高光
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  dirLight.position.set(5, 10, 7);
+  scene.add(dirLight);
 }
 
 // 动画循环
