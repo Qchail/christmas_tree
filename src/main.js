@@ -36,6 +36,10 @@ controls.minDistance = 5;
 controls.maxDistance = 30;
 controls.target.set(0, 4, 0);
 
+// 开启自动旋转
+controls.autoRotate = true;
+controls.autoRotateSpeed = -1.0; // 负值实现画面逆时针旋转（相机顺时针公转），数值越小越慢
+
 // 保存原始的鼠标按钮配置
 // OrbitControls 中：0 = ROTATE, 1 = DOLLY, 2 = PAN
 const MOUSE_ROTATE = 0;
