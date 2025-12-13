@@ -427,6 +427,32 @@
       /* 镜像显示 */
     }
 
+    #gesture-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 56px;
+      opacity: 0.7;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+      z-index: 1;
+      filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6));
+    }
+
+    /* 摄像头未开启时，图标显示 */
+    #gesture-container:not(.active) #gesture-icon {
+      opacity: 0.7;
+      transform: translate(-50%, -50%) scale(1);
+      display: block;
+    }
+
+    /* 摄像头开启时，图标完全隐藏 */
+    #gesture-container.active #gesture-icon {
+      opacity: 0;
+      display: none;
+    }
+
     #gesture-status {
       position: absolute;
       bottom: 0;
@@ -438,6 +464,7 @@
       padding: 4px;
       text-align: center;
       pointer-events: none;
+      z-index: 2;
     }
 
     @media (max-width: 768px) {
@@ -481,6 +508,7 @@
   <div id="gesture-container">
     <video class="input_video"></video>
     <canvas class="output_canvas" width="320" height="240"></canvas>
+    <div id="gesture-icon">📷</div>
     <div id="gesture-status">点击开启摄像头控制</div>
   </div>
 
