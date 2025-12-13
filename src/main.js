@@ -36,6 +36,74 @@ controls.minDistance = 5;
 controls.maxDistance = 30;
 controls.target.set(0, 4, 0);
 
+// 保存原始的鼠标按钮配置
+// OrbitControls 中：0 = ROTATE, 1 = DOLLY, 2 = PAN
+const MOUSE_ROTATE = 0;
+const MOUSE_DOLLY = 1;
+const MOUSE_PAN = 2;
+
+const originalLeftButton = controls.mouseButtons.LEFT;
+
+// 监听空格键，按住空格键时拖动鼠标可以平移
+let isSpacePressed = false;
+let isDragging = false;
+
+// 更新光标样式
+function updateCursor() {
+  if (isSpacePressed) {
+    if (isDragging) {
+      renderer.domElement.style.cursor = 'grabbing';
+    } else {
+      renderer.domElement.style.cursor = 'grab';
+    }
+  } else {
+    renderer.domElement.style.cursor = 'default';
+  }
+}
+
+window.addEventListener('keydown', (event) => {
+  if (event.code === 'Space' && !isSpacePressed) {
+    isSpacePressed = true;
+    // 按住空格键时，左键拖动变成平移
+    controls.mouseButtons.LEFT = MOUSE_PAN;
+    updateCursor();
+    event.preventDefault(); // 防止空格键触发页面滚动
+  }
+});
+
+window.addEventListener('keyup', (event) => {
+  if (event.code === 'Space') {
+    isSpacePressed = false;
+    isDragging = false;
+    // 释放空格键时，恢复左键拖动为旋转
+    controls.mouseButtons.LEFT = originalLeftButton;
+    updateCursor();
+  }
+});
+
+// 监听鼠标按下和释放，更新拖动状态
+renderer.domElement.addEventListener('mousedown', (event) => {
+  if (isSpacePressed && event.button === 0) { // 左键
+    isDragging = true;
+    updateCursor();
+  }
+});
+
+renderer.domElement.addEventListener('mouseup', (event) => {
+  if (event.button === 0) { // 左键
+    isDragging = false;
+    updateCursor();
+  }
+});
+
+// 鼠标离开画布时，重置拖动状态
+renderer.domElement.addEventListener('mouseleave', () => {
+  isDragging = false;
+  if (!isSpacePressed) {
+    updateCursor();
+  }
+});
+
 // 创建粒子圆锥体
 function createParticleCone() {
   // 从配置文件读取参数
