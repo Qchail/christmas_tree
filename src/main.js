@@ -4,6 +4,249 @@ import { particleConfig } from './config.js';
 
 console.log('Three.js 版本:', THREE.REVISION);
 
+// ========== 照片管理系统 ==========
+const MAX_PHOTOS = 25;
+const STORAGE_KEY = 'christmas_tree_photos';
+
+// 照片存储管理类
+class PhotoManager {
+  constructor() {
+    this.photos = this.loadPhotos();
+    this.updateUI();
+  }
+
+  // 从 localStorage 加载照片
+  loadPhotos() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('加载照片失败:', e);
+      return [];
+    }
+  }
+
+  // 保存照片到 localStorage
+  savePhotos() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.photos));
+    } catch (e) {
+      console.error('保存照片失败:', e);
+      alert('照片保存失败，可能是存储空间不足');
+    }
+  }
+
+  // 添加照片
+  async addPhoto(file) {
+    if (this.photos.length >= MAX_PHOTOS) {
+      alert(`最多只能上传 ${MAX_PHOTOS} 张照片`);
+      return false;
+    }
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('请上传图片文件');
+      return false;
+    }
+
+    // 检查文件大小 (限制为 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片大小不能超过 5MB');
+      return false;
+    }
+
+    try {
+      // 读取文件并转换为 base64
+      const base64 = await this.fileToBase64(file);
+
+      // 压缩图片
+      const compressed = await this.compressImage(base64);
+
+      this.photos.push({
+        id: Date.now() + Math.random(),
+        data: compressed,
+        name: file.name,
+        uploadTime: new Date().toISOString()
+      });
+
+      this.savePhotos();
+      this.updateUI();
+      return true;
+    } catch (e) {
+      console.error('添加照片失败:', e);
+      alert('添加照片失败，请重试');
+      return false;
+    }
+  }
+
+  // 删除照片
+  deletePhoto(id) {
+    this.photos = this.photos.filter(p => p.id !== id);
+    this.savePhotos();
+    this.updateUI();
+    // 重新创建照片卡片（延迟执行，确保函数已定义）
+    if (window.recreatePhotoCards) {
+      window.recreatePhotoCards();
+    }
+  }
+
+  // 获取所有照片
+  getPhotos() {
+    return this.photos;
+  }
+
+  // 文件转 base64
+  fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 压缩图片
+  compressImage(base64, maxWidth = 800, maxHeight = 800, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // 计算缩放比例
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = base64;
+    });
+  }
+
+  // 更新 UI
+  updateUI() {
+    // 更新计数
+    const countElement = document.querySelector('#photo-count .count');
+    if (countElement) {
+      countElement.textContent = this.photos.length;
+    }
+
+    // 更新照片网格
+    this.updatePhotoGrid();
+  }
+
+  // 更新照片网格
+  updatePhotoGrid() {
+    const grid = document.getElementById('photo-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    this.photos.forEach(photo => {
+      const item = document.createElement('div');
+      item.className = 'photo-item';
+
+      const img = document.createElement('img');
+      img.src = photo.data;
+      img.alt = photo.name;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.innerHTML = '×';
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm('确定要删除这张照片吗？')) {
+          this.deletePhoto(photo.id);
+        }
+      };
+
+      item.appendChild(img);
+      item.appendChild(deleteBtn);
+      grid.appendChild(item);
+    });
+  }
+}
+
+// 创建照片管理器实例
+const photoManager = new PhotoManager();
+
+// UI 事件处理
+document.addEventListener('DOMContentLoaded', () => {
+  const uploadBtn = document.getElementById('upload-btn');
+  const photoManagerPanel = document.getElementById('photo-manager');
+  const managerClose = document.getElementById('manager-close');
+  const uploadArea = document.getElementById('upload-area');
+  const fileInput = document.getElementById('file-input');
+
+  // 打开照片管理面板
+  uploadBtn?.addEventListener('click', () => {
+    photoManagerPanel.classList.add('active');
+  });
+
+  // 关闭照片管理面板
+  managerClose?.addEventListener('click', () => {
+    photoManagerPanel.classList.remove('active');
+  });
+
+  // 点击上传区域
+  uploadArea?.addEventListener('click', () => {
+    fileInput?.click();
+  });
+
+  // 文件选择
+  fileInput?.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    await handleFiles(files);
+    fileInput.value = ''; // 清空，允许重复上传同一文件
+  });
+
+  // 拖拽上传
+  uploadArea?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+
+  uploadArea?.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea?.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files);
+    await handleFiles(files);
+  });
+
+  // 处理文件上传
+  async function handleFiles(files) {
+    const remaining = MAX_PHOTOS - photoManager.photos.length;
+    if (files.length > remaining) {
+      alert(`最多还能上传 ${remaining} 张照片`);
+      files = files.slice(0, remaining);
+    }
+
+    for (const file of files) {
+      await photoManager.addPhoto(file);
+    }
+
+    // 上传完成后重新创建照片卡片（延迟执行，确保函数已定义）
+    if (window.recreatePhotoCards) {
+      window.recreatePhotoCards();
+    }
+  }
+});
+
 // 场景设置
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
@@ -762,33 +1005,25 @@ function createGoldFoilSystem() {
   return new THREE.Points(geometry, material);
 }
 
-// 这里的图片列表
-const availableImages = [
-  'IMG_6772.JPG', 'IMG_6776.JPG', 'IMG_6782.JPG', 'IMG_6791.JPG',
-  'IMG_6812.JPG', 'IMG_6813.JPG', 'IMG_6817.JPG', 'IMG_6823.JPG',
-  'IMG_6825.JPG', 'IMG_6831.JPG', 'IMG_6847.JPG', 'IMG_6848.JPG',
-  'IMG_6853.JPG', 'IMG_6854.JPG', 'IMG_6859.JPG', 'IMG_6860.JPG',
-  'IMG_6861.JPG', 'IMG_6862.JPG', 'IMG_6863.JPG', 'IMG_6867.JPG',
-  'IMG_6869.JPG', 'IMG_6870.JPG', 'IMG_6872.JPG', 'IMG_6874.JPG',
-  'IMG_6875.JPG', 'IMG_6876.JPG', 'IMG_6881.JPG', 'IMG_6882.JPG',
-  'IMG_6893.JPG', 'IMG_6896.JPG', 'IMG_6897.JPG', 'IMG_6904.JPG',
-  'IMG_6908.JPG', 'IMG_6914.JPG', 'IMG_6923.JPG', 'IMG_6927.JPG',
-  'IMG_6929.JPG', 'IMG_6930.JPG', 'IMG_6940.JPG', 'IMG_6941.JPG',
-  'IMG_6944.JPG'
-];
+// 获取要显示的照片列表（只使用用户上传的照片）
+function getPhotosToDisplay() {
+  const userPhotos = photoManager.getPhotos();
 
-// 随机选择图片
-function getRandomImages(count) {
-  const shuffled = [...availableImages].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
+  // 只返回用户上传的照片
+  return userPhotos.map(photo => ({
+    type: 'user',
+    src: photo.data,
+    id: photo.id
+  }));
 }
 
 // 创建照片卡片系统
 function createPhotoCards() {
   if (!particleConfig.photoCards || !particleConfig.photoCards.enabled) return null;
 
-  const count = particleConfig.photoCards.count;
-  const selectedImages = getRandomImages(count);
+  const photos = getPhotosToDisplay();
+  if (photos.length === 0) return null;
+
   const group = new THREE.Group();
   const loader = new THREE.TextureLoader();
 
@@ -800,7 +1035,7 @@ function createPhotoCards() {
   const treeHeight = particleConfig.cone.height;
   const baseRadius = particleConfig.cone.baseRadius;
 
-  selectedImages.forEach((imgName, index) => {
+  photos.forEach((photoData, index) => {
     // 1. 创建卡片组（包含边框和照片）
     const cardGroup = new THREE.Group();
 
@@ -816,7 +1051,7 @@ function createPhotoCards() {
     cardGroup.add(frame);
 
     // 3. 加载照片纹理
-    const texture = loader.load(`/images/${imgName}`);
+    const texture = loader.load(photoData.src);
     // 确保纹理不过度拉伸，这里简单处理，实际可根据图片比例调整
     texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -833,12 +1068,12 @@ function createPhotoCards() {
     // 给照片添加 userData，存储图片路径，方便点击时获取
     photo.userData = {
       isPhoto: true,
-      imageSrc: `/images/${imgName}`,
+      imageSrc: photoData.src,
       parentGroup: cardGroup
     };
     frame.userData = { // 边框也加上，方便点击判定
       isPhoto: true,
-      imageSrc: `/images/${imgName}`,
+      imageSrc: photoData.src,
       parentGroup: cardGroup
     };
 
@@ -850,7 +1085,7 @@ function createPhotoCards() {
     const currentRadius = baseRadius * (1 - y / treeHeight);
 
     // 角度均匀分布，让照片围绕树圆周均匀摆放
-    const angle = (index / count) * Math.PI * 2;
+    const angle = (index / photos.length) * Math.PI * 2;
     const r = currentRadius + 0.5; // 稍微悬浮在树表面外
 
     const x = Math.cos(angle) * r;
@@ -1378,11 +1613,37 @@ if (ornaments) {
 }
 
 // 创建并添加照片卡片
-const photoCards = createPhotoCards();
+let photoCards = createPhotoCards();
 if (photoCards) {
   scene.add(photoCards);
   console.log('照片卡片已创建');
 }
+
+// 重新创建照片卡片的函数
+function recreatePhotoCards() {
+  // 移除旧的照片卡片
+  if (photoCards) {
+    scene.remove(photoCards);
+    // 释放资源
+    photoCards.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (child.material.map) child.material.map.dispose();
+        child.material.dispose();
+      }
+    });
+  }
+
+  // 创建新的照片卡片
+  photoCards = createPhotoCards();
+  if (photoCards) {
+    scene.add(photoCards);
+    console.log('照片卡片已重新创建，数量:', photoCards.children.length);
+  }
+}
+
+// 将函数暴露到全局，供 PhotoManager 使用
+window.recreatePhotoCards = recreatePhotoCards;
 
 // 处理鼠标移动（Hover效果）
 window.addEventListener('mousemove', (event) => {

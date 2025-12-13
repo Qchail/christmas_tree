@@ -153,7 +153,7 @@ export const particleConfig = {
   // ========== 照片卡片参数 ==========
   photoCards: {
     enabled: true,       // 是否启用照片卡片
-    count: 20,           // 卡片数量
+    count: 25,           // 默认卡片数量（当没有用户上传照片时使用）
     cardWidth: 0.5,      // 卡片宽度
     cardHeight: 0.65,     // 卡片高度
     photoSize: 0.5       // 照片大小

@@ -87,12 +87,241 @@
       transform: rotate(90deg) scale(1.2);
       color: #ffd700;
     }
+
+    /* 上传按钮样式 */
+    #upload-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #upload-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #upload-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    #upload-btn:active {
+      transform: translateY(0);
+    }
+
+    #photo-count {
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    #photo-count .count {
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    /* 照片管理面板 */
+    #photo-manager {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      z-index: 2000;
+      overflow-y: auto;
+    }
+
+    #photo-manager.active {
+      display: block;
+    }
+
+    #manager-content {
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    #manager-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    #manager-header h2 {
+      color: #333;
+      font-size: 28px;
+      margin: 0;
+    }
+
+    #manager-close {
+      background: #ff4757;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    #manager-close:hover {
+      background: #ff3838;
+      transform: scale(1.05);
+    }
+
+    #upload-area {
+      border: 3px dashed #667eea;
+      border-radius: 15px;
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 30px;
+      background: #f8f9ff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #upload-area:hover {
+      background: #f0f2ff;
+      border-color: #764ba2;
+    }
+
+    #upload-area.dragover {
+      background: #e8ebff;
+      border-color: #764ba2;
+      transform: scale(1.02);
+    }
+
+    #upload-area p {
+      margin: 10px 0;
+      color: #666;
+      font-size: 16px;
+    }
+
+    #upload-area .limit {
+      color: #999;
+      font-size: 14px;
+    }
+
+    #photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .photo-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .photo-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-item .delete-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(255, 71, 87, 0.9);
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .photo-item:hover .delete-btn {
+      opacity: 1;
+    }
+
+    .photo-item .delete-btn:hover {
+      background: rgba(255, 71, 87, 1);
+      transform: scale(1.1);
+    }
+
+    #file-input {
+      display: none;
+    }
   </style>
 </head>
 
 <body>
   <div id="canvas-container"></div>
-  
+
+  <!-- 上传按钮 -->
+  <div id="upload-container">
+    <button id="upload-btn">
+      <span>📷</span>
+      <span>管理照片</span>
+    </button>
+    <div id="photo-count">
+      已上传: <span class="count">0</span> / 25
+    </div>
+  </div>
+
+  <!-- 照片管理面板 -->
+  <div id="photo-manager">
+    <div id="manager-content">
+      <div id="manager-header">
+        <h2>📸 我的照片墙</h2>
+        <button id="manager-close">关闭</button>
+      </div>
+
+      <div id="upload-area">
+        <p style="font-size: 24px; margin-bottom: 10px;">📤</p>
+        <p><strong>点击或拖拽上传照片</strong></p>
+        <p class="limit">最多上传 25 张照片 (支持 JPG, PNG, GIF, WebP)</p>
+      </div>
+
+      <div id="photo-grid"></div>
+    </div>
+  </div>
+
   <!-- 照片展示遮罩层 -->
   <div id="photo-overlay">
     <div id="close-btn">&times;</div>
@@ -100,6 +329,8 @@
       <img id="photo-img" src="" alt="Photo">
     </div>
   </div>
+
+  <input type="file" id="file-input" accept="image/*" multiple>
 
   <script type="module" src="/src/main.js"></script>
 </body>
