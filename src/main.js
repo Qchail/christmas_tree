@@ -346,13 +346,6 @@ controls.addEventListener('change', () => {
     // 获取 OrbitControls 的角度信息
     const polarAngle = controls.getPolarAngle(); // 俯仰角 (0=顶视图, PI=底视图)
     const azimuthalAngle = controls.getAzimuthalAngle(); // 方位角 (水平旋转)
-
-    console.log(
-      `[相机监控] ` +
-      `位置: { x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)} } | ` +
-      `俯仰角: ${(polarAngle * 180 / Math.PI).toFixed(1)}° | ` +
-      `方位角: ${(azimuthalAngle * 180 / Math.PI).toFixed(1)}°`
-    );
     lastLogTime = now;
   }
 });
@@ -800,12 +793,9 @@ function createStar() {
 
   const star = new THREE.Mesh(geometry, material);
 
-  // #region agent log
   // 检查着色器编译错误
   const program = material.program;
   const hasError = program && (program.error || !program.program);
-  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:373', message: 'Star mesh created', data: { hasGeometry: !!star.geometry, hasMaterial: !!star.material, materialType: star.material?.type, hasProgram: !!program, programError: hasError, vertexShaderError: material.vertexShader?.includes('error'), fragmentShaderError: material.fragmentShader?.includes('error') }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
-  // #endregion
 
   // 旋转使五角星竖立在 YZ 平面上（垂直放置），并调整角度使其正立
   star.rotation.z = Math.PI / 2;
@@ -818,10 +808,6 @@ function createStar() {
     particleConfig.cone.height + particleConfig.star.positionOffset.y,
     particleConfig.star.positionOffset.z
   );
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:385', message: 'Star position set', data: { positionX: star.position.x, positionY: star.position.y, positionZ: star.position.z, rotationZ: star.rotation.z }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' }) }).catch(() => { });
-  // #endregion
 
   // 创建光晕 Sprite
   // 1. 创建辉光纹理 (复用 createGlowTexture 逻辑，但这里我们直接创建黄色的)
@@ -1269,6 +1255,8 @@ function createPhotoCards() {
     // 存储原始缩放和旋转，用于hover效果恢复
     cardGroup.userData.originalScale = cardGroup.scale.clone();
     cardGroup.userData.originalRotation = cardGroup.rotation.clone();
+    // 在 cardGroup 的 userData 中也存储 imageSrc，方便直接访问
+    cardGroup.userData.imageSrc = photoData.src;
 
     group.add(cardGroup);
   });
@@ -1748,13 +1736,7 @@ console.log('粒子圆锥体已创建，粒子数量:', particleCone.geometry.at
 const star = createStar();
 let starLight = null;
 if (star) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:396', message: 'Before adding star to scene', data: { starExists: !!star, hasGeometry: !!star?.geometry, hasMaterial: !!star?.material }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-  // #endregion
   scene.add(star);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:399', message: 'After adding star to scene', data: { starInScene: scene.children.includes(star), sceneChildrenCount: scene.children.length }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
-  // #endregion
   console.log('五角星已创建');
 
   // 创建五角星光源
@@ -1941,16 +1923,57 @@ window.addEventListener('click', (event) => {
 const overlay = document.getElementById('photo-overlay');
 const overlayImg = document.getElementById('photo-img');
 const closeBtn = document.getElementById('close-btn');
+let isPhotoLoading = false; // 标记图片是否正在加载
 
 function openPhotoOverlay(src) {
+  if (!src || typeof src !== 'string' || src.length === 0) {
+    console.warn('无效的图片源:', src);
+    return;
+  }
+
+  // 如果正在加载图片，先停止当前加载
+  if (isPhotoLoading) {
+    // 清除之前的加载状态
+    overlayImg.onload = null;
+    overlayImg.onerror = null;
+    overlayImg.src = ''; // 清空当前图片源，停止加载
+  }
+
+  // 标记开始加载
+  isPhotoLoading = true;
+
+  // 先隐藏遮罩层，等图片加载完成后再显示
+  overlay.classList.remove('active');
+
+  // 添加错误处理
+  overlayImg.onerror = () => {
+    console.error('图片加载失败:', src.substring(0, 50) + '...');
+    isPhotoLoading = false;
+    // 关闭遮罩层
+    closePhotoOverlay();
+    alert('图片加载失败，请检查图片是否有效');
+  };
+
+  overlayImg.onload = () => {
+    // 图片加载成功后，显示遮罩层
+    isPhotoLoading = false;
+    overlay.classList.add('active');
+    // 清除错误处理，避免影响后续加载
+    overlayImg.onerror = null;
+  };
+
+  // 设置图片源，开始加载
   overlayImg.src = src;
-  overlay.classList.add('active');
   // 暂停自动旋转
   controls.autoRotate = false;
 }
 
 function closePhotoOverlay() {
   overlay.classList.remove('active');
+  // 清除加载状态
+  isPhotoLoading = false;
+  overlayImg.onload = null;
+  overlayImg.onerror = null;
   // 延迟清空图片，避免视觉跳动
   setTimeout(() => {
     overlayImg.src = '';
@@ -2555,6 +2578,60 @@ setTimeout(() => {
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.repeat) {
     toggleScatter();
+  }
+
+  // 监听 S 键，随机点击一张照片
+  if (event.key === 's' || event.key === 'S') {
+    // 防止重复触发：如果正在加载图片，忽略本次按键
+    if (isPhotoLoading) {
+      return;
+    }
+
+    if (!event.repeat && photoCards && photoCards.children.length > 0) {
+      // 获取所有照片卡片，并过滤出有有效 imageSrc 的卡片
+      const validCardGroups = photoCards.children.filter(child => {
+        if (!(child instanceof THREE.Group)) return false;
+        // 优先检查 cardGroup 本身的 userData.imageSrc
+        if (child.userData && child.userData.imageSrc && typeof child.userData.imageSrc === 'string' && child.userData.imageSrc.length > 0) {
+          return true;
+        }
+        // 如果没有，检查子元素
+        return child.children.some(c => {
+          return c.userData && c.userData.imageSrc && typeof c.userData.imageSrc === 'string' && c.userData.imageSrc.length > 0;
+        });
+      });
+
+      if (validCardGroups.length > 0) {
+        // 随机选择一张照片
+        const randomIndex = Math.floor(Math.random() * validCardGroups.length);
+        const randomCard = validCardGroups[randomIndex];
+
+        // 获取照片的 imageSrc（优先从 cardGroup 的 userData 获取）
+        let imageSrc = null;
+        if (randomCard.userData && randomCard.userData.imageSrc && typeof randomCard.userData.imageSrc === 'string' && randomCard.userData.imageSrc.length > 0) {
+          imageSrc = randomCard.userData.imageSrc;
+        } else {
+          // 如果没有，从子元素中查找
+          for (const child of randomCard.children) {
+            if (child.userData && child.userData.imageSrc && typeof child.userData.imageSrc === 'string' && child.userData.imageSrc.length > 0) {
+              imageSrc = child.userData.imageSrc;
+              break;
+            }
+          }
+        }
+
+        if (imageSrc) {
+          openPhotoOverlay(imageSrc);
+        }
+      }
+    }
+  }
+
+  // 监听 ESC 键，关闭放大的照片
+  if (event.key === 'Escape') {
+    if (overlay && overlay.classList.contains('active')) {
+      closePhotoOverlay();
+    }
   }
 });
 
