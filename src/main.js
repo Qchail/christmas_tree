@@ -94,27 +94,6 @@ function createParticleCone() {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       time: { value: 0 },
-      lightPosition: {
-        value: new THREE.Vector3(
-          particleConfig.lighting.light1.position.x,
-          particleConfig.lighting.light1.position.y,
-          particleConfig.lighting.light1.position.z
-        )
-      },
-      lightPosition2: {
-        value: new THREE.Vector3(
-          particleConfig.lighting.light2.position.x,
-          particleConfig.lighting.light2.position.y,
-          particleConfig.lighting.light2.position.z
-        )
-      },
-      viewerPosition: { value: camera.position },
-      lightColor: { value: new THREE.Color(particleConfig.lighting.light1.color) },
-      lightIntensity: { value: particleConfig.lighting.light1.intensity },
-      lightIntensity2: { value: particleConfig.lighting.light2.intensity },
-      shininess: { value: particleConfig.lighting.shininess },
-      specularStrength: { value: particleConfig.lighting.specularStrength },
-      ambientIntensity: { value: particleConfig.lighting.ambient },
       pointSizeScale: { value: particleConfig.size.scale },
       particleRadius: { value: particleConfig.appearance.radius },
       particleEdge: { value: particleConfig.appearance.edge },
@@ -129,16 +108,11 @@ function createParticleCone() {
       attribute vec3 particleColor;
       uniform float pointSizeScale;
       varying vec3 vColor;
-      varying vec3 vWorldPosition;
-      varying vec3 vViewPosition;
       
       void main() {
         vColor = particleColor;
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
         
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        vViewPosition = -mvPosition.xyz;
         
         // 从配置读取缩放因子
         gl_PointSize = size * (pointSizeScale / -mvPosition.z);
@@ -146,15 +120,6 @@ function createParticleCone() {
       }
     `,
     fragmentShader: `
-      uniform vec3 lightPosition;
-      uniform vec3 lightPosition2;
-      uniform vec3 viewerPosition;
-      uniform vec3 lightColor;
-      uniform float lightIntensity;
-      uniform float lightIntensity2;
-      uniform float shininess;
-      uniform float specularStrength;
-      uniform float ambientIntensity;
       uniform float particleRadius;
       uniform float particleEdge;
       uniform float colorEnhancement;
@@ -164,8 +129,6 @@ function createParticleCone() {
       uniform float glowBloom;
       
       varying vec3 vColor;
-      varying vec3 vWorldPosition;
-      varying vec3 vViewPosition;
       
       void main() {
         vec2 center = vec2(0.5, 0.5);
@@ -184,17 +147,6 @@ function createParticleCone() {
         }
         
         if (alpha < 0.01) discard;
-        
-        // 计算粒子表面的法线（假设是球体）
-        vec3 normal = normalize(vec3(coord * 2.0, sqrt(1.0 - min(dot(coord, coord) * 4.0, 1.0))));
-        
-        // 转换法线到世界空间（简化处理，使用视图空间）
-        vec3 viewNormal = normalize(normal);
-        vec3 viewPos = normalize(vViewPosition);
-        
-        // 计算光照方向（在视图空间）
-        vec3 lightDir1 = normalize((viewMatrix * vec4(lightPosition, 1.0)).xyz - (viewMatrix * vec4(vWorldPosition, 1.0)).xyz);
-        vec3 lightDir2 = normalize((viewMatrix * vec4(lightPosition2, 1.0)).xyz - (viewMatrix * vec4(vWorldPosition, 1.0)).xyz);
         
         // 完全由内向外发光，不使用环境光和光照
         vec3 finalColor = vec3(0.0);
@@ -224,7 +176,7 @@ function createParticleCone() {
           finalColor += glowColor * glowIntensity * 0.8 * centerBoost;
         } else {
           // 如果发光未启用，使用基础颜色
-          finalColor = vColor * ambientIntensity;
+          finalColor = vColor;
           finalColor = pow(finalColor, vec3(0.9)) * colorEnhancement;
         }
         
@@ -253,8 +205,6 @@ function animate() {
   // 更新粒子材质的时间（用于可能的动画效果）
   if (particleCone.material instanceof THREE.ShaderMaterial) {
     particleCone.material.uniforms.time.value += 0.01;
-    // 更新相机位置到着色器
-    particleCone.material.uniforms.viewerPosition.value.copy(camera.position);
   }
 
   controls.update();

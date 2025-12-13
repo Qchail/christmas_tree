@@ -21,22 +21,6 @@ export const particleConfig = {
     variationMax: 1.0    // 颜色亮度变化最大值
   },
 
-  // ========== 光照参数 ==========
-  lighting: {
-    light1: {
-      position: { x: 0, y: 10, z: 5 },  // 光源1位置
-      intensity: 1.5,                    // 光源1强度
-      color: 0xffffff                    // 光源颜色
-    },
-    light2: {
-      position: { x: 5, y: 8, z: -5 },   // 光源2位置
-      intensity: 0.8                     // 光源2强度
-    },
-    ambient: 1.0,                        // 环境光强度（增加到1.0以消除阴影）
-    shininess: 32.0,                     // 高光锐度（数值越大，高光越集中）
-    specularStrength: 0.8                // 镜面反射强度
-  },
-
   // ========== 粒子外观参数 ==========
   appearance: {
     radius: 0.45,         // 粒子半径（0-0.5，影响圆形大小）
