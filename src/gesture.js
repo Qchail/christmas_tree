@@ -282,12 +282,29 @@ export class GestureController {
     const thumbBent = isBent(4);   // 拇指
 
     // 比耶手势（✌🏻）：优先检测
-    // 核心特征：食指和中指伸直，其他手指弯曲
-    // 使用更宽松的检测：只要食指和中指伸直，且无名指和小指至少有一个弯曲
-    const isVictory = !indexBent && !middleBent && (ringBent || pinkyBent);
+    // 核心特征：食指和中指伸直，无名指和小指都明显弯曲
+    // 严格要求：
+    // 1. 食指和中指必须伸直
+    // 2. 无名指和小指都必须弯曲（避免将五指张开误判为比耶）
+    // 3. 使用距离检查确保弯曲程度足够明显
+    const isVictory = !indexBent && !middleBent && ringBent && pinkyBent;
 
     if (isVictory) {
-      return 'INDEX_POINTING';
+      // 额外检查：确保无名指和小指的弯曲程度足够明显
+      // 通过比较指尖到手腕的距离来判断
+      const indexDist = this.calculateDistance(landmarks[8], wrist);
+      const middleDist = this.calculateDistance(landmarks[12], wrist);
+      const ringDist = this.calculateDistance(landmarks[16], wrist);
+      const pinkyDist = this.calculateDistance(landmarks[20], wrist);
+
+      // 无名指和小指到手腕的距离应该明显小于食指和中指
+      // 这样可以确保它们确实弯曲了，而不是只是稍微弯曲
+      const ringBentEnough = ringDist < indexDist * 0.85;
+      const pinkyBentEnough = pinkyDist < indexDist * 0.85;
+
+      if (ringBentEnough && pinkyBentEnough) {
+        return 'INDEX_POINTING';
+      }
     }
 
     let bentCount = (indexBent ? 1 : 0) + (middleBent ? 1 : 0) + (ringBent ? 1 : 0) + (pinkyBent ? 1 : 0);
