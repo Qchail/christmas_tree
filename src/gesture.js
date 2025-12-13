@@ -19,6 +19,7 @@ export class GestureController {
     this.camera = null;
 
     this.isActive = false;
+    this.hasReceivedFirstFrame = false; // 标记是否已收到第一帧画面
 
     // 光标平滑处理
     this.cursorX = window.innerWidth / 2;
@@ -81,11 +82,12 @@ export class GestureController {
   async start() {
     if (!this.camera) return;
 
-    this.statusElement.textContent = '正在启动摄像头...';
+    this.statusElement.textContent = '摄像头启动中';
+    this.statusElement.style.display = 'block';
+    this.hasReceivedFirstFrame = false; // 重置标志
     try {
       await this.camera.start();
       this.isActive = true;
-      this.statusElement.textContent = '摄像头已启动';
       document.getElementById('gesture-container').classList.add('active');
 
       // 切换到手势说明
@@ -94,11 +96,7 @@ export class GestureController {
       if (instructions) instructions.classList.add('hidden');
       if (gestureInstructions) gestureInstructions.classList.add('visible');
 
-      setTimeout(() => {
-        if (this.isActive) {
-          this.statusElement.style.display = 'none';
-        }
-      }, 3000);
+      // 注意：状态文字会在收到第一帧画面时更新为"摄像头启动成功"
     } catch (err) {
       console.error('摄像头启动失败:', err);
       this.statusElement.textContent = '摄像头启动失败';
@@ -116,6 +114,7 @@ export class GestureController {
     }
 
     this.isActive = false;
+    this.hasReceivedFirstFrame = false; // 重置标志
     this.statusElement.textContent = '点击开启摄像头启动手势控制';
     this.statusElement.style.display = 'block';
     this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
@@ -130,6 +129,12 @@ export class GestureController {
 
   onResults(results) {
     if (!this.isActive) return;
+
+    // 第一次收到画面时，更新状态文字
+    if (!this.hasReceivedFirstFrame) {
+      this.hasReceivedFirstFrame = true;
+      this.statusElement.textContent = '摄像头启动成功';
+    }
 
     this.canvasCtx.save();
     this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
