@@ -2792,11 +2792,11 @@ function animate() {
 
       // 检查是否落地
       if (positions[i3 + 1] <= groundLevel) {
-        // 固定在地面高度
-        positions[i3 + 1] = groundLevel;
-        // 标记为已落地
-        landed[i] = 1;
-        // 停止飘动（不再更新水平位置）
+        // 循环回到顶部，实现无限下雪效果
+        positions[i3 + 1] = height;
+        // 重新随机水平位置，避免重复路径
+        positions[i3] = (Math.random() - 0.5) * range;
+        positions[i3 + 2] = (Math.random() - 0.5) * range;
       }
     }
 
