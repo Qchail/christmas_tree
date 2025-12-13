@@ -171,9 +171,10 @@ export const particleConfig = {
   photoCards: {
     enabled: true,       // 是否启用照片卡片
     count: 25,           // 默认卡片数量（当没有用户上传照片时使用）
-    cardWidth: 0.5,      // 卡片宽度
-    cardHeight: 0.65,     // 卡片高度
-    photoSize: 0.5       // 照片大小
+    cardWidth: 0.7,      // 卡片宽度
+    cardHeight: 0.9,     // 卡片高度
+    photoSize: 0.7,      // 照片大小
+    scatteredScale: 4  // 散开时的缩放倍数（元素散开时照片卡片放大）
   },
 
   // ========== 相机旋转参数 ==========
@@ -181,7 +182,7 @@ export const particleConfig = {
     autoRotate: {
       enabled: true,           // 是否启用自动旋转
       normalSpeed: -1.5,       // 正常旋转速度（负值实现画面逆时针旋转，绝对值越大越快）
-      scatteredSpeed: -3.5      // 散开时的旋转速度（元素散开时加快旋转）
+      scatteredSpeed: -5      // 散开时的旋转速度（元素散开时加快旋转）
     }
   },
 

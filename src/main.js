@@ -1795,14 +1795,27 @@ window.addEventListener('mousemove', (event) => {
         if (hoveredCard !== cardGroup) {
           // 如果之前有悬停的卡片，先恢复
           if (hoveredCard) {
-            hoveredCard.scale.copy(hoveredCard.userData.originalScale);
+            // 恢复到散开状态下的缩放（如果散开）或原始缩放（如果聚集）
+            const originalScale = hoveredCard.userData.originalScale || new THREE.Vector3(1, 1, 1);
+            const scatteredScale = particleConfig.photoCards.scatteredScale || 1.5;
+            if (isScattered) {
+              hoveredCard.scale.copy(originalScale).multiplyScalar(scatteredScale);
+            } else {
+              hoveredCard.scale.copy(originalScale);
+            }
           }
 
           // 设置新的悬停卡片
           hoveredCard = cardGroup;
 
-          // 放大效果
-          hoveredCard.scale.set(1.2, 1.2, 1.2);
+          // 放大效果：在散开缩放的基础上再放大1.2倍（如果散开），否则直接放大1.2倍
+          const originalScale = hoveredCard.userData.originalScale || new THREE.Vector3(1, 1, 1);
+          const scatteredScale = particleConfig.photoCards.scatteredScale || 1.5;
+          if (isScattered) {
+            hoveredCard.scale.copy(originalScale).multiplyScalar(scatteredScale * 1.2);
+          } else {
+            hoveredCard.scale.set(1.2, 1.2, 1.2);
+          }
 
           // 改变光标
           document.body.style.cursor = 'pointer';
@@ -1814,7 +1827,14 @@ window.addEventListener('mousemove', (event) => {
 
   // 如果没有交点或交点不是照片
   if (hoveredCard) {
-    hoveredCard.scale.copy(hoveredCard.userData.originalScale);
+    // 恢复到散开状态下的缩放（如果散开）或原始缩放（如果聚集）
+    const originalScale = hoveredCard.userData.originalScale || new THREE.Vector3(1, 1, 1);
+    const scatteredScale = particleConfig.photoCards.scatteredScale || 1.5;
+    if (isScattered) {
+      hoveredCard.scale.copy(originalScale).multiplyScalar(scatteredScale);
+    } else {
+      hoveredCard.scale.copy(originalScale);
+    }
     hoveredCard = null;
     document.body.style.cursor = 'default';
     updateCursor(); // 恢复默认光标逻辑（检查空格键状态）
@@ -2205,14 +2225,33 @@ function updateScatterAnimation() {
     });
   }
 
-  // 更新照片卡片位置（只在第二阶段执行）
+  // 更新照片卡片位置和缩放（只在第二阶段执行）
   if (scatterProgress > 0 && photoCards && originalPositions.photoCards.length > 0 && scatteredPositions.photoCards.length > 0) {
+    const scatteredScale = particleConfig.photoCards.scatteredScale || 1.5; // 从配置读取散开时的缩放倍数
     originalPositions.photoCards.forEach((item, index) => {
       if (item.object && scatteredPositions.photoCards[index]) {
+        // 更新位置
         if (isScattered) {
           item.object.position.lerpVectors(item.position, scatteredPositions.photoCards[index].position, easedScatterProgress);
         } else {
           item.object.position.lerpVectors(scatteredPositions.photoCards[index].position, item.position, easedScatterProgress);
+        }
+
+        // 更新缩放：散开时放大，聚集时恢复原始大小
+        // 如果当前卡片正在被悬停，跳过缩放更新（让悬停效果优先）
+        if (item.object === hoveredCard) {
+          return;
+        }
+
+        const originalScale = item.object.userData.originalScale || new THREE.Vector3(1, 1, 1);
+        if (isScattered) {
+          // 散开：从原始大小逐渐放大到配置的倍数
+          const targetScale = originalScale.clone().multiplyScalar(scatteredScale);
+          item.object.scale.lerpVectors(originalScale, targetScale, easedScatterProgress);
+        } else {
+          // 聚集：从放大状态逐渐恢复到原始大小
+          const currentScatteredScale = originalScale.clone().multiplyScalar(scatteredScale);
+          item.object.scale.lerpVectors(currentScatteredScale, originalScale, easedScatterProgress);
         }
       }
     });
@@ -2278,6 +2317,22 @@ function updateScatterAnimation() {
       spiralRibbon.children.forEach((child) => {
         if (child.material && child.material.uniforms) {
           child.material.uniforms.fadeProgress.value = finalFadeProgress;
+        }
+      });
+    }
+    // 确保照片卡片缩放状态正确
+    if (photoCards && originalPositions.photoCards.length > 0) {
+      const scatteredScale = particleConfig.photoCards.scatteredScale || 1.5;
+      originalPositions.photoCards.forEach((item) => {
+        if (item.object) {
+          const originalScale = item.object.userData.originalScale || new THREE.Vector3(1, 1, 1);
+          if (isScattered) {
+            // 散开状态：设置为放大后的缩放
+            item.object.scale.copy(originalScale).multiplyScalar(scatteredScale);
+          } else {
+            // 聚集状态：恢复原始缩放
+            item.object.scale.copy(originalScale);
+          }
         }
       });
     }
