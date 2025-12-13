@@ -1373,7 +1373,8 @@ function createSpiralRibbon() {
       glowColor: { value: new THREE.Color(config.glowColor) },
       glowIntensity: { value: config.glowIntensity },
       sparkleSpeed: { value: config.sparkleSpeed },
-      sparkleIntensity: { value: config.sparkleIntensity }
+      sparkleIntensity: { value: config.sparkleIntensity },
+      fadeProgress: { value: 0.0 } // 渐变进度：0=完全显示，1=完全消失
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -1403,6 +1404,7 @@ function createSpiralRibbon() {
       uniform float glowIntensity;
       uniform float sparkleSpeed;
       uniform float sparkleIntensity;
+      uniform float fadeProgress; // 渐变进度
       
       varying vec3 vWorldPosition;
       varying vec3 vNormal;
@@ -1411,6 +1413,21 @@ function createSpiralRibbon() {
       varying vec3 vViewDirection;
       
       void main() {
+        // 根据UV坐标和fadeProgress计算渐变透明度
+        // vUv.x沿着管道长度：0=尾部（底部），1=头部（顶部）
+        // fadeProgress > 0时，从尾部到头部逐渐消失
+        // fadeProgress < 0时，从头部到尾部逐渐出现（取绝对值）
+        float fadeAlpha = 1.0;
+        if (fadeProgress > 0.0) {
+          // 散开：从尾部到头部消失（vUv.x从0到1，fadeProgress从0到1）
+          float fadeThreshold = fadeProgress;
+          fadeAlpha = step(fadeThreshold, vUv.x); // vUv.x < fadeThreshold的部分消失
+        } else if (fadeProgress < 0.0) {
+          // 聚集：从头部到尾部出现（vUv.x从1到0，fadeProgress从-1到0）
+          float fadeThreshold = 1.0 + fadeProgress; // fadeProgress从-1到0，threshold从0到1
+          fadeAlpha = step(1.0 - fadeThreshold, vUv.x); // vUv.x > (1-fadeThreshold)的部分显示
+        }
+        
         // 计算边缘发光（基于法线和视角）- 使用更强的菲涅尔效果
         float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.2);
         fresnel = smoothstep(0.0, 1.0, fresnel);
@@ -1507,6 +1524,7 @@ function createSpiralRibbon() {
         float alpha = 0.9 + fresnel * 0.1;
         alpha *= (0.85 + edgeGlow * 0.15);
         alpha = min(alpha, 0.98); // 限制最大透明度，保持实体感
+        alpha *= fadeAlpha; // 应用渐变透明度
         
         gl_FragColor = vec4(finalColor, alpha);
       }
@@ -1534,7 +1552,8 @@ function createSpiralRibbon() {
       time: { value: 0 },
       glowColor: { value: new THREE.Color(config.glowColor) },
       glowIntensity: { value: config.glowIntensity * 0.6 }, // 外层光晕强度稍低
-      sparkleSpeed: { value: config.sparkleSpeed }
+      sparkleSpeed: { value: config.sparkleSpeed },
+      fadeProgress: { value: 0.0 } // 渐变进度
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -1559,6 +1578,7 @@ function createSpiralRibbon() {
       uniform vec3 glowColor;
       uniform float glowIntensity;
       uniform float sparkleSpeed;
+      uniform float fadeProgress; // 渐变进度
       
       varying vec3 vWorldPosition;
       varying vec3 vNormal;
@@ -1566,6 +1586,18 @@ function createSpiralRibbon() {
       varying vec3 vViewDirection;
       
       void main() {
+        // 根据UV坐标和fadeProgress计算渐变透明度
+        float fadeAlpha = 1.0;
+        if (fadeProgress > 0.0) {
+          // 散开：从尾部到头部消失
+          float fadeThreshold = fadeProgress;
+          fadeAlpha = step(fadeThreshold, vUv.x);
+        } else if (fadeProgress < 0.0) {
+          // 聚集：从头部到尾部出现
+          float fadeThreshold = 1.0 + fadeProgress;
+          fadeAlpha = step(1.0 - fadeThreshold, vUv.x);
+        }
+        
         // 计算边缘距离（从中心到边缘）
         float distFromCenter = abs(vUv.y - 0.5) * 2.0; // 0 到 1
         
@@ -1598,6 +1630,7 @@ function createSpiralRibbon() {
         // 结合所有效果 - 添加闪光增强
         float finalAlpha = edgeFade * (0.3 + fresnel * 0.4 + wave * 0.2 + totalSparkle * 0.1);
         finalAlpha = min(finalAlpha, 0.5); // 稍微提高最大透明度，让闪光更明显
+        finalAlpha *= fadeAlpha; // 应用渐变透明度
         
         // 增强边缘亮度和闪光效果
         finalGlow *= (1.0 + fresnel * 0.5 + totalSparkle * 0.8);
@@ -1836,9 +1869,337 @@ if (spiralRibbon) {
   console.log('螺旋光带已创建');
 }
 
+// ========== 散开/聚集动画系统 ==========
+let isScattered = false; // 当前状态：false=聚集，true=散开
+let animationProgress = 0; // 动画进度 0-1
+const ribbonFadeDuration = 1000; // 光带渐变持续时间（毫秒）
+const scatterDuration = 1500; // 元素散开持续时间（毫秒）
+const totalAnimationDuration = ribbonFadeDuration + scatterDuration; // 总动画时间
+let animationStartTime = 0;
+let isAnimating = false;
+
+// 保存原始位置数据
+const originalPositions = {
+  particleCone: null, // 粒子系统的原始位置数组
+  star: null,
+  ornaments: [], // 装饰球组的每个球的位置
+  photoCards: [], // 照片卡片的每个卡片的位置
+  spiralRibbon: null
+};
+
+// 散开目标位置
+const scatteredPositions = {
+  particleCone: null,
+  star: null,
+  ornaments: [],
+  photoCards: [],
+  spiralRibbon: null
+};
+
+// 保存原始位置
+function saveOriginalPositions() {
+  // 保存粒子系统的原始位置
+  if (particleCone && particleCone.geometry) {
+    const positions = particleCone.geometry.attributes.position.array;
+    originalPositions.particleCone = new Float32Array(positions);
+  }
+
+  // 保存五角星位置
+  if (star) {
+    originalPositions.star = star.position.clone();
+  }
+
+  // 保存装饰球位置（包括光晕）
+  if (ornaments) {
+    originalPositions.ornaments = [];
+    // 装饰球组的结构：每个装饰球是一个group，包含mesh和sprite
+    ornaments.children.forEach((group) => {
+      if (group instanceof THREE.Group) {
+        let mesh = null;
+        let glow = null;
+        group.children.forEach((child) => {
+          if (child instanceof THREE.Mesh) {
+            mesh = child;
+          } else if (child instanceof THREE.Sprite) {
+            glow = child;
+          }
+        });
+        if (mesh) {
+          originalPositions.ornaments.push({
+            group: group,
+            mesh: mesh,
+            glow: glow,
+            position: group.position.clone()
+          });
+        }
+      }
+    });
+  }
+
+  // 保存照片卡片位置
+  if (photoCards) {
+    originalPositions.photoCards = [];
+    photoCards.children.forEach((cardGroup) => {
+      originalPositions.photoCards.push({
+        object: cardGroup,
+        position: cardGroup.position.clone()
+      });
+    });
+  }
+
+  // 保存彩带位置（如果有子对象）
+  if (spiralRibbon) {
+    originalPositions.spiralRibbon = spiralRibbon.position.clone();
+  }
+}
+
+// 生成散开位置
+function generateScatteredPositions() {
+  const scatterRange = 30; // 散开范围
+  const scatterHeight = 20; // 散开高度范围
+
+  // 生成粒子系统的散开位置（随机偏移每个粒子）
+  if (particleCone && particleCone.geometry && originalPositions.particleCone) {
+    const positions = particleCone.geometry.attributes.position.array;
+    scatteredPositions.particleCone = new Float32Array(positions.length);
+    for (let i = 0; i < positions.length; i += 3) {
+      scatteredPositions.particleCone[i] = positions[i] + (Math.random() - 0.5) * scatterRange;
+      scatteredPositions.particleCone[i + 1] = positions[i + 1] + Math.random() * scatterHeight;
+      scatteredPositions.particleCone[i + 2] = positions[i + 2] + (Math.random() - 0.5) * scatterRange;
+    }
+  }
+
+  // 生成五角星散开位置
+  if (star && originalPositions.star) {
+    scatteredPositions.star = new THREE.Vector3(
+      originalPositions.star.x + (Math.random() - 0.5) * scatterRange,
+      originalPositions.star.y + Math.random() * scatterHeight,
+      originalPositions.star.z + (Math.random() - 0.5) * scatterRange
+    );
+  }
+
+  // 生成装饰球散开位置
+  if (ornaments && originalPositions.ornaments.length > 0) {
+    scatteredPositions.ornaments = originalPositions.ornaments.map(() => ({
+      position: new THREE.Vector3(
+        (Math.random() - 0.5) * scatterRange,
+        Math.random() * scatterHeight,
+        (Math.random() - 0.5) * scatterRange
+      )
+    }));
+  }
+
+  // 生成照片卡片散开位置
+  if (photoCards && originalPositions.photoCards.length > 0) {
+    scatteredPositions.photoCards = originalPositions.photoCards.map(() => ({
+      position: new THREE.Vector3(
+        (Math.random() - 0.5) * scatterRange,
+        Math.random() * scatterHeight,
+        (Math.random() - 0.5) * scatterRange
+      )
+    }));
+  }
+
+  // 生成彩带散开位置
+  if (spiralRibbon && originalPositions.spiralRibbon) {
+    scatteredPositions.spiralRibbon = new THREE.Vector3(
+      originalPositions.spiralRibbon.x + (Math.random() - 0.5) * scatterRange,
+      originalPositions.spiralRibbon.y + Math.random() * scatterHeight,
+      originalPositions.spiralRibbon.z + (Math.random() - 0.5) * scatterRange
+    );
+  }
+}
+
+// 缓动函数（ease in out）
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// 更新动画
+function updateScatterAnimation() {
+  if (!isAnimating) return;
+
+  const currentTime = Date.now();
+  const elapsed = currentTime - animationStartTime;
+  const totalProgress = Math.min(elapsed / totalAnimationDuration, 1);
+
+  // 分阶段动画
+  let ribbonFadeProgress = 0; // 光带渐变进度
+  let scatterProgress = 0; // 元素散开进度
+
+  if (isScattered) {
+    // 散开：第一阶段光带消失，第二阶段元素散开
+    if (elapsed < ribbonFadeDuration) {
+      // 第一阶段：光带从尾部到头部消失
+      ribbonFadeProgress = Math.min(elapsed / ribbonFadeDuration, 1);
+      scatterProgress = 0;
+    } else {
+      // 第二阶段：元素散开
+      ribbonFadeProgress = 1;
+      scatterProgress = Math.min((elapsed - ribbonFadeDuration) / scatterDuration, 1);
+    }
+  } else {
+    // 聚集：第一阶段元素聚集，第二阶段光带出现
+    if (elapsed < scatterDuration) {
+      // 第一阶段：元素聚集
+      scatterProgress = Math.min(elapsed / scatterDuration, 1);
+      ribbonFadeProgress = 1;
+    } else {
+      // 第二阶段：光带从头部到尾部出现
+      scatterProgress = 1;
+      ribbonFadeProgress = 1 - Math.min((elapsed - scatterDuration) / ribbonFadeDuration, 1);
+    }
+  }
+
+  const easedScatterProgress = easeInOutCubic(scatterProgress);
+  const easedRibbonProgress = easeInOutCubic(ribbonFadeProgress);
+
+  // 更新粒子系统位置（只在第二阶段执行）
+  if (scatterProgress > 0 && particleCone && particleCone.geometry && originalPositions.particleCone && scatteredPositions.particleCone) {
+    const positions = particleCone.geometry.attributes.position.array;
+    for (let i = 0; i < positions.length; i += 3) {
+      if (isScattered) {
+        // 散开：从原始位置到散开位置
+        positions[i] = originalPositions.particleCone[i] + (scatteredPositions.particleCone[i] - originalPositions.particleCone[i]) * easedScatterProgress;
+        positions[i + 1] = originalPositions.particleCone[i + 1] + (scatteredPositions.particleCone[i + 1] - originalPositions.particleCone[i + 1]) * easedScatterProgress;
+        positions[i + 2] = originalPositions.particleCone[i + 2] + (scatteredPositions.particleCone[i + 2] - originalPositions.particleCone[i + 2]) * easedScatterProgress;
+      } else {
+        // 聚集：从散开位置回到原始位置
+        positions[i] = scatteredPositions.particleCone[i] + (originalPositions.particleCone[i] - scatteredPositions.particleCone[i]) * easedScatterProgress;
+        positions[i + 1] = scatteredPositions.particleCone[i + 1] + (originalPositions.particleCone[i + 1] - scatteredPositions.particleCone[i + 1]) * easedScatterProgress;
+        positions[i + 2] = scatteredPositions.particleCone[i + 2] + (originalPositions.particleCone[i + 2] - scatteredPositions.particleCone[i + 2]) * easedScatterProgress;
+      }
+    }
+    particleCone.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // 更新五角星位置（只在第二阶段执行）
+  if (scatterProgress > 0 && star && originalPositions.star) {
+    if (isScattered && scatteredPositions.star) {
+      star.position.lerpVectors(originalPositions.star, scatteredPositions.star, easedScatterProgress);
+      if (star.children && star.children.length > 0) {
+        star.children.forEach(child => {
+          if (child instanceof THREE.Sprite) {
+            child.position.copy(star.position);
+          }
+        });
+      }
+    } else if (!isScattered && scatteredPositions.star) {
+      star.position.lerpVectors(scatteredPositions.star, originalPositions.star, easedScatterProgress);
+      if (star.children && star.children.length > 0) {
+        star.children.forEach(child => {
+          if (child instanceof THREE.Sprite) {
+            child.position.copy(star.position);
+          }
+        });
+      }
+    }
+  }
+
+  // 更新装饰球位置（只在第二阶段执行）
+  if (scatterProgress > 0 && ornaments && originalPositions.ornaments.length > 0 && scatteredPositions.ornaments.length > 0) {
+    originalPositions.ornaments.forEach((item, index) => {
+      if (item.group && scatteredPositions.ornaments[index]) {
+        if (isScattered) {
+          item.group.position.lerpVectors(item.position, scatteredPositions.ornaments[index].position, easedScatterProgress);
+        } else {
+          item.group.position.lerpVectors(scatteredPositions.ornaments[index].position, item.position, easedScatterProgress);
+        }
+      }
+    });
+  }
+
+  // 更新照片卡片位置（只在第二阶段执行）
+  if (scatterProgress > 0 && photoCards && originalPositions.photoCards.length > 0 && scatteredPositions.photoCards.length > 0) {
+    originalPositions.photoCards.forEach((item, index) => {
+      if (item.object && scatteredPositions.photoCards[index]) {
+        if (isScattered) {
+          item.object.position.lerpVectors(item.position, scatteredPositions.photoCards[index].position, easedScatterProgress);
+        } else {
+          item.object.position.lerpVectors(scatteredPositions.photoCards[index].position, item.position, easedScatterProgress);
+        }
+      }
+    });
+  }
+
+  // 更新彩带位置（只在第二阶段执行）
+  if (scatterProgress > 0 && spiralRibbon && originalPositions.spiralRibbon) {
+    if (isScattered && scatteredPositions.spiralRibbon) {
+      spiralRibbon.position.lerpVectors(originalPositions.spiralRibbon, scatteredPositions.spiralRibbon, easedScatterProgress);
+    } else if (!isScattered && scatteredPositions.spiralRibbon) {
+      spiralRibbon.position.lerpVectors(scatteredPositions.spiralRibbon, originalPositions.spiralRibbon, easedScatterProgress);
+    }
+  }
+
+  // 更新彩带渐变效果（从尾部到头部消失/出现）
+  if (spiralRibbon) {
+    // 散开时：fadeProgress从0到1（从尾部到头部消失）
+    // 聚集时：fadeProgress从-1到0（从头部到尾部出现）
+    const fadeProgressValue = isScattered ? easedRibbonProgress : -(1.0 - easedRibbonProgress);
+
+    spiralRibbon.children.forEach((child) => {
+      if (child.material && child.material.uniforms) {
+        child.material.uniforms.fadeProgress.value = fadeProgressValue;
+      }
+    });
+  }
+
+  // 更新光源位置（如果五角星移动）
+  if (starLight && star) {
+    starLight.position.copy(star.position);
+  }
+
+  if (totalProgress >= 1) {
+    isAnimating = false;
+    // 如果散开，重新生成散开位置（为下次聚集做准备）
+    if (isScattered) {
+      generateScatteredPositions();
+    }
+    // 确保光带状态正确
+    if (spiralRibbon) {
+      const finalFadeProgress = isScattered ? 1.0 : 0.0;
+      spiralRibbon.children.forEach((child) => {
+        if (child.material && child.material.uniforms) {
+          child.material.uniforms.fadeProgress.value = finalFadeProgress;
+        }
+      });
+    }
+  }
+}
+
+// 切换散开/聚集状态
+function toggleScatter() {
+  if (isAnimating) return; // 如果正在动画，忽略
+
+  isScattered = !isScattered;
+  isAnimating = true;
+  animationStartTime = Date.now();
+
+  if (isScattered) {
+    // 散开：生成散开位置
+    generateScatteredPositions();
+  }
+}
+
+// 初始化：保存原始位置
+setTimeout(() => {
+  saveOriginalPositions();
+  generateScatteredPositions(); // 预生成散开位置
+}, 100);
+
+// 监听 Enter 键
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.repeat) {
+    toggleScatter();
+  }
+});
+
 // 动画循环
 function animate() {
   requestAnimationFrame(animate);
+
+  // 更新散开/聚集动画
+  updateScatterAnimation();
 
   // 更新粒子材质的时间（用于可能的动画效果）
   if (particleCone.material instanceof THREE.ShaderMaterial) {
