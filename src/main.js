@@ -1220,7 +1220,7 @@ function createOrnamentGroup(config) {
   gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // 中心白亮（刺眼）
   gradient.addColorStop(0.1, 'rgba(255, 255, 255, 1)'); // 保持中心极亮
   gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 1.0)`); // 中间主体色（增强亮度）
-  gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.6)`); // 外部光晕（增强）
+  gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.4)`); // 外部光晕（增强）
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // 边缘透明
 
   context.fillStyle = gradient;

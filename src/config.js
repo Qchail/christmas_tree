@@ -4,7 +4,7 @@ export const particleConfig = {
   cone: {
     height: 8,           // 圆锥体高度
     baseRadius: 5,       // 底部半径
-    particleCount: 2000  // 粒子数量（影响性能，建议 1000-5000）
+    particleCount: 3000  // 粒子数量（增加以产生更多绿色粒子）
   },
 
   // ========== 小球大小参数 ==========
@@ -24,7 +24,7 @@ export const particleConfig = {
   // ========== 黄色粒子参数 ==========
   yellowParticles: {
     enabled: true,       // 是否启用黄色粒子
-    ratio: 0.15,         // 黄色粒子比例（0-1，0.15表示15%的粒子是黄色）
+    ratio: 0.20,         // 黄色粒子比例（降低比例，让绿色粒子更多）
     color: 0xFFFF00,     // 黄色粒子颜色（亮金色）
     glowColor: 0xFFFF00, // 黄色粒子发光颜色（亮金色）
     glowIntensity: 1.5   // 黄色粒子发光强度倍数（相对于基础发光强度）
