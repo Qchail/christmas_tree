@@ -839,6 +839,189 @@ function createOrnaments() {
   return mainGroup;
 }
 
+// 创建螺旋光带
+function createSpiralRibbon() {
+  if (!particleConfig.spiralRibbon.enabled) return null;
+
+  const config = particleConfig.spiralRibbon;
+  const treeHeight = particleConfig.cone.height;
+  const baseRadius = particleConfig.cone.baseRadius;
+  const turns = config.turns;
+  const offset = config.offset;
+
+  // 创建螺旋曲线路径
+  const curvePoints = [];
+  const segments = 200; // 路径分段数，数值越大越平滑
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments; // 0 到 1
+    const y = t * treeHeight; // 从底部到顶部
+
+    // 根据高度计算当前层的半径（与树形一致）
+    const currentRadius = baseRadius * (1 - t) + offset;
+
+    // 计算螺旋角度
+    const angle = t * Math.PI * 2 * turns;
+
+    // 计算位置
+    const x = Math.cos(angle) * currentRadius;
+    const z = Math.sin(angle) * currentRadius;
+
+    curvePoints.push(new THREE.Vector3(x, y, z));
+  }
+
+  // 创建曲线
+  const curve = new THREE.CatmullRomCurve3(curvePoints);
+  curve.curveType = 'centripetal'; // 使用向心曲线类型，更平滑
+
+  // 创建扁平丝带的截面形状（矩形）
+  const ribbonShape = new THREE.Shape();
+  const halfWidth = config.width / 2;
+  const halfHeight = config.height / 2;
+
+  ribbonShape.moveTo(-halfWidth, -halfHeight);
+  ribbonShape.lineTo(halfWidth, -halfHeight);
+  ribbonShape.lineTo(halfWidth, halfHeight);
+  ribbonShape.lineTo(-halfWidth, halfHeight);
+  ribbonShape.closePath();
+
+  // 使用 TubeGeometry 创建沿曲线延伸的丝带
+  const geometry = new THREE.TubeGeometry(
+    curve,
+    segments,
+    config.width,
+    2, // 径向分段数（截面分段）
+    false // 不闭合
+  );
+
+  // 创建高级银白色辉光材质（使用自定义着色器）
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      baseColor: { value: new THREE.Color(config.color) },
+      glowColor: { value: new THREE.Color(config.glowColor) },
+      glowIntensity: { value: config.glowIntensity },
+      sparkleSpeed: { value: config.sparkleSpeed },
+      sparkleIntensity: { value: config.sparkleIntensity }
+    },
+    vertexShader: `
+      varying vec3 vWorldPosition;
+      varying vec3 vNormal;
+      varying vec2 vUv;
+      varying float vDistance;
+      varying vec3 vViewDirection;
+      
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        
+        // 计算到相机的距离，用于边缘发光效果
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vDistance = length(mvPosition.xyz);
+        vViewDirection = normalize(cameraPosition - vWorldPosition);
+        
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      uniform vec3 baseColor;
+      uniform vec3 glowColor;
+      uniform float glowIntensity;
+      uniform float sparkleSpeed;
+      uniform float sparkleIntensity;
+      
+      varying vec3 vWorldPosition;
+      varying vec3 vNormal;
+      varying vec2 vUv;
+      varying float vDistance;
+      varying vec3 vViewDirection;
+      
+      void main() {
+        // 计算边缘发光（基于法线和视角）- 使用更强的菲涅尔效果
+        float fresnel = pow(1.0 - max(dot(vViewDirection, vNormal), 0.0), 1.5);
+        fresnel = smoothstep(0.0, 1.0, fresnel);
+        
+        // 多层闪光效果 - 创造奢华闪光感
+        // 主要闪光波（沿丝带长度方向）
+        float sparkle1 = sin(vUv.x * 25.0 + time * sparkleSpeed) * 0.5 + 0.5;
+        sparkle1 = pow(sparkle1, 2.5);
+        
+        // 快速闪烁点（高频闪光）
+        float sparkle2 = sin(vUv.x * 60.0 + time * sparkleSpeed * 2.5) * 0.5 + 0.5;
+        sparkle2 = pow(sparkle2, 8.0);
+        
+        // 中频闪光（创造流动感）
+        float sparkle3 = sin(vUv.x * 35.0 + time * sparkleSpeed * 1.5) * 0.5 + 0.5;
+        sparkle3 = pow(sparkle3, 4.0);
+        
+        // 随机闪光点（使用噪声模拟）
+        float noise = fract(sin(dot(vec2(vUv.x * 100.0, time * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
+        float sparkle4 = step(0.95, noise) * (0.5 + 0.5 * sin(time * sparkleSpeed * 5.0));
+        
+        // 组合所有闪光效果
+        float totalSparkle = sparkle1 * 0.5 + sparkle2 * 0.3 + sparkle3 * 0.15 + sparkle4 * 0.05;
+        totalSparkle = pow(totalSparkle, 0.7); // 增强整体闪光强度
+        
+        // 边缘渐变（让丝带边缘更亮，创造扁平丝带感）
+        float edgeGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
+        edgeGlow = pow(edgeGlow, 0.3); // 更明显的边缘发光
+        
+        // 中心高光带（模拟丝带中心的反光）
+        float centerGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
+        centerGlow = pow(centerGlow, 2.0);
+        
+        // 高级银白色基础色（带微妙的冷色调）
+        vec3 silverBase = baseColor;
+        // 添加微妙的蓝白色调，增强高级感
+        vec3 premiumSilver = mix(silverBase, vec3(0.95, 0.98, 1.0), 0.3);
+        
+        // 构建最终颜色
+        vec3 finalColor = premiumSilver;
+        
+        // 添加强烈的边缘辉光
+        finalColor += glowColor * glowIntensity * fresnel * 1.5;
+        
+        // 添加中心高光带
+        finalColor += glowColor * centerGlow * 0.8;
+        
+        // 添加边缘发光
+        finalColor += glowColor * edgeGlow * 0.6;
+        
+        // 添加奢华闪光效果（使用纯白色闪光）
+        vec3 sparkleColor = vec3(1.0, 1.0, 1.0); // 纯白色闪光
+        finalColor += sparkleColor * sparkleIntensity * totalSparkle * 2.0;
+        
+        // 添加菲涅尔边缘闪光
+        finalColor += sparkleColor * fresnel * 0.8;
+        
+        // 整体亮度增强，创造高级感
+        finalColor *= 1.5;
+        
+        // 添加微妙的颜色变化（根据视角）
+        float colorShift = fresnel * 0.2;
+        finalColor = mix(finalColor, vec3(0.98, 0.99, 1.0), colorShift);
+        
+        // 计算透明度（中心更不透明，边缘更透明）
+        float alpha = 0.85 + fresnel * 0.15;
+        alpha *= (0.8 + edgeGlow * 0.2);
+        alpha = min(alpha, 0.95); // 限制最大透明度，保持实体感
+        
+        gl_FragColor = vec4(finalColor, alpha);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending, // 使用加法混合增强发光效果
+    depthWrite: false
+  });
+
+  const ribbon = new THREE.Mesh(geometry, material);
+  return ribbon;
+}
+
 // 创建粒子圆锥体
 const particleCone = createParticleCone();
 scene.add(particleCone);
@@ -911,6 +1094,13 @@ if (ornaments) {
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
   dirLight.position.set(5, 10, 7);
   scene.add(dirLight);
+}
+
+// 创建并添加螺旋光带
+const spiralRibbon = createSpiralRibbon();
+if (spiralRibbon) {
+  scene.add(spiralRibbon);
+  console.log('螺旋光带已创建');
 }
 
 // 动画循环
@@ -992,6 +1182,11 @@ function animate() {
       }
     }
     goldFoilSystem.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // 更新螺旋光带的时间（用于闪光动画）
+  if (spiralRibbon && spiralRibbon.material instanceof THREE.ShaderMaterial) {
+    spiralRibbon.material.uniforms.time.value += 0.016; // 约60fps的时间增量
   }
 
   controls.update();

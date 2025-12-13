@@ -115,7 +115,7 @@ export const particleConfig = {
   // ========== 圣诞球装饰 ==========
   ornaments: {
     enabled: true,
-    count: 35,           // 增加一点数量
+    count: 10,           // 增加一点数量
     radius: 0.25,        // 球体半径
     color: 0xFFFF00,     // 颜色 (与五角星一致 - 亮黄)
     metalness: 1.0,      // 金属度 (拉满，最强金属质感)
@@ -127,13 +127,27 @@ export const particleConfig = {
   // ========== 红色小球装饰 ==========
   redOrnaments: {
     enabled: true,
-    count: 30,           // 数量比金球多一些
+    count: 10,           // 数量比金球多一些
     radius: 0.25,        // 半径 (与金球一致)
     color: 0xFF0000,     // 颜色 (纯红)
     metalness: 0.9,      // 金属度
     roughness: 0.1,      // 粗糙度
     emissive: 0xFF0000,  // 自发光颜色 (红色)
     emissiveIntensity: 1.5 // 自发光强度 (红色比较暗，需要更高的强度)
+  },
+
+  // ========== 螺旋光带参数 ==========
+  spiralRibbon: {
+    enabled: true,        // 是否启用螺旋光带
+    turns: 3.5,          // 螺旋圈数（增加圈数，更完整地缠绕）
+    width: 0.18,         // 丝带宽度（稍微加宽，更明显）
+    height: 0.015,       // 丝带厚度（扁平，模拟真实丝带）
+    color: 0xE8E8E8,     // 高级银白色基础颜色（更亮的银白色）
+    glowColor: 0xFFFFFF, // 辉光颜色（纯白，创造高级感）
+    glowIntensity: 3.5,  // 辉光强度（增强发光效果）
+    sparkleSpeed: 3.0,   // 闪光速度（更快的闪光，更奢华）
+    sparkleIntensity: 2.0, // 闪光强度（增强闪光效果）
+    offset: 0.15         // 距离树表面的偏移量（稍微远离，更明显）
   }
 };
 
