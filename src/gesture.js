@@ -217,6 +217,10 @@ export class GestureController {
   detectAndTriggerGesture(landmarks) {
     const gesture = this.detectHandPose(landmarks);
 
+    // 如果是未知手势，直接忽略，保持上一个有效状态
+    // 这样可以解决 FIST -> UNKNOWN -> OPEN 导致动作链断裂的问题
+    if (gesture === 'UNKNOWN') return;
+
     // 状态变更触发事件
     if (gesture !== this.lastGesture) {
       // 握拳 -> 伸掌 : 散开
@@ -263,11 +267,13 @@ export class GestureController {
     const middleBent = isBent(12); // 中指
     const ringBent = isBent(16);   // 无名指
     const pinkyBent = isBent(20);  // 小指
+    const thumbBent = isBent(4);   // 拇指
 
     let bentCount = (indexBent ? 1 : 0) + (middleBent ? 1 : 0) + (ringBent ? 1 : 0) + (pinkyBent ? 1 : 0);
 
-    // 单指模式：食指伸直，其他三指弯曲
-    if (!indexBent && middleBent && ringBent && pinkyBent) {
+    // 单指模式：食指伸直，其他四指（包括拇指）弯曲
+    // 增加 thumbBent 判断，防止"手枪"手势（食指+拇指）误触
+    if (!indexBent && middleBent && ringBent && pinkyBent && thumbBent) {
       return 'INDEX_POINTING';
     }
 
