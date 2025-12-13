@@ -52,6 +52,10 @@ function createParticleCone() {
   // 从配置文件读取颜色
   const greenColor = new THREE.Color(particleConfig.color.base);
 
+  // 计算常量值（移到循环外，避免重复计算）
+  const sizeRange = particleConfig.size.max - particleConfig.size.min;
+  const colorVariationRange = particleConfig.color.variationMax - particleConfig.color.variationMin;
+
   for (let i = 0; i < particleCount; i++) {
     const i3 = i * 3;
 
@@ -72,12 +76,10 @@ function createParticleCone() {
     positions[i3 + 1] = y;
     positions[i3 + 2] = Math.sin(angle) * radiusFactor;
 
-    // 从配置文件读取大小范围
-    const sizeRange = particleConfig.size.max - particleConfig.size.min;
+    // 使用预计算的大小范围
     sizes[i] = particleConfig.size.min + Math.random() * sizeRange;
 
-    // 从配置文件读取颜色变化范围
-    const colorVariationRange = particleConfig.color.variationMax - particleConfig.color.variationMin;
+    // 使用预计算的颜色变化范围
     const colorVariation = particleConfig.color.variationMin + Math.random() * colorVariationRange;
     colors[i3] = greenColor.r * colorVariation;
     colors[i3 + 1] = greenColor.g * colorVariation;
@@ -116,7 +118,11 @@ function createParticleCone() {
       pointSizeScale: { value: particleConfig.size.scale },
       particleRadius: { value: particleConfig.appearance.radius },
       particleEdge: { value: particleConfig.appearance.edge },
-      colorEnhancement: { value: particleConfig.appearance.colorEnhancement }
+      colorEnhancement: { value: particleConfig.appearance.colorEnhancement },
+      glowEnabled: { value: particleConfig.glow.enabled ? 1.0 : 0.0 },
+      glowIntensity: { value: particleConfig.glow.intensity },
+      glowColor: { value: new THREE.Color(particleConfig.glow.color) },
+      glowBloom: { value: particleConfig.glow.bloom }
     },
     vertexShader: `
       attribute float size;
@@ -152,6 +158,10 @@ function createParticleCone() {
       uniform float particleRadius;
       uniform float particleEdge;
       uniform float colorEnhancement;
+      uniform float glowEnabled;
+      uniform float glowIntensity;
+      uniform vec3 glowColor;
+      uniform float glowBloom;
       
       varying vec3 vColor;
       varying vec3 vWorldPosition;
@@ -186,39 +196,43 @@ function createParticleCone() {
         vec3 lightDir1 = normalize((viewMatrix * vec4(lightPosition, 1.0)).xyz - (viewMatrix * vec4(vWorldPosition, 1.0)).xyz);
         vec3 lightDir2 = normalize((viewMatrix * vec4(lightPosition2, 1.0)).xyz - (viewMatrix * vec4(vWorldPosition, 1.0)).xyz);
         
-        // 从配置读取环境光强度
-        vec3 ambient = vColor * ambientIntensity;
+        // 完全由内向外发光，不使用环境光和光照
+        vec3 finalColor = vec3(0.0);
         
-        // 漫反射（光源1）
-        float diff1 = max(dot(viewNormal, lightDir1), 0.0);
-        vec3 diffuse1 = vColor * lightColor * diff1 * lightIntensity;
-        
-        // 漫反射（光源2）
-        float diff2 = max(dot(viewNormal, lightDir2), 0.0);
-        vec3 diffuse2 = vColor * lightColor * diff2 * lightIntensity2;
-        
-        // 镜面反射（高光）- Blinn-Phong
-        vec3 viewDir = normalize(-viewPos);
-        vec3 halfDir1 = normalize(lightDir1 + viewDir);
-        vec3 halfDir2 = normalize(lightDir2 + viewDir);
-        
-        float spec1 = pow(max(dot(viewNormal, halfDir1), 0.0), shininess);
-        float spec2 = pow(max(dot(viewNormal, halfDir2), 0.0), shininess);
-        
-        vec3 specular1 = lightColor * spec1 * specularStrength * lightIntensity;
-        vec3 specular2 = lightColor * spec2 * specularStrength * lightIntensity2;
-        
-        // 组合所有光照
-        vec3 finalColor = ambient + diffuse1 + diffuse2 + specular1 + specular2;
-        
-        // 从配置读取颜色增强倍数
-        finalColor = pow(finalColor, vec3(0.9)) * colorEnhancement;
+        if (glowEnabled > 0.5) {
+          // 计算从中心到边缘的距离（归一化到0-1）
+          // dist 范围是 0 到 (radius + edge)
+          float normalizedDist = dist / (radius + edge);
+          
+          // 由内向外发光：中心最亮（normalizedDist=0时glowFactor=1），边缘最暗（normalizedDist=1时glowFactor=0）
+          // 使用平滑过渡
+          float glowFactor = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+          
+          // 使用指数函数增强中心亮度，让中心更亮，边缘更暗
+          // glowBloom 越小，中心越亮，边缘衰减越快
+          glowFactor = pow(glowFactor, 1.0 / glowBloom);
+          
+          // 计算自发光颜色：使用小球的基础颜色和发光颜色混合
+          vec3 baseGlowColor = mix(vColor, glowColor, 0.5);
+          
+          // 中心最亮，向外逐渐变暗
+          finalColor = baseGlowColor * glowIntensity * glowFactor;
+          
+          // 增强中心区域的亮度，让中心更突出
+          float centerBoost = 1.0 - smoothstep(0.0, radius * 0.3, dist);
+          centerBoost = pow(centerBoost, 3.0);
+          finalColor += glowColor * glowIntensity * 0.8 * centerBoost;
+        } else {
+          // 如果发光未启用，使用基础颜色
+          finalColor = vColor * ambientIntensity;
+          finalColor = pow(finalColor, vec3(0.9)) * colorEnhancement;
+        }
         
         gl_FragColor = vec4(finalColor, alpha);
       }
     `,
     transparent: true,
-    blending: THREE.NormalBlending,
+    blending: THREE.AdditiveBlending, // 使用加法混合增强发光效果
     depthWrite: false,
     depthTest: true
   });

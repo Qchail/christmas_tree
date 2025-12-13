@@ -32,7 +32,7 @@ export const particleConfig = {
       position: { x: 5, y: 8, z: -5 },   // 光源2位置
       intensity: 0.8                     // 光源2强度
     },
-    ambient: 0.3,                        // 环境光强度
+    ambient: 1.0,                        // 环境光强度（增加到1.0以消除阴影）
     shininess: 32.0,                     // 高光锐度（数值越大，高光越集中）
     specularStrength: 0.8                // 镜面反射强度
   },
@@ -42,6 +42,14 @@ export const particleConfig = {
     radius: 0.45,         // 粒子半径（0-0.5，影响圆形大小）
     edge: 0.05,          // 边缘柔化（影响边缘模糊程度）
     colorEnhancement: 1.2 // 颜色增强倍数
+  },
+
+  // ========== 发光效果参数 ==========
+  glow: {
+    enabled: true,        // 是否启用发光效果
+    intensity: 5.0,       // 发光强度（数值越大越亮，建议1.0-3.0）
+    color: 0x228B22,      // 发光颜色（默认与基础颜色相同）
+    bloom: 0.8            // 光晕衰减（数值越小，中心越亮边缘越暗，建议0.5-1.5）
   }
 };
 
