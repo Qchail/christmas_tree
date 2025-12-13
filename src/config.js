@@ -9,8 +9,8 @@ export const particleConfig = {
 
   // ========== 小球大小参数 ==========
   size: {
-    min: 0.2,            // 最小大小
-    max: 0.6,            // 最大大小
+    min: 0.4,            // 最小大小
+    max: 1.0,            // 最大大小
     scale: 300.0         // 着色器缩放因子（数值越大，小球越大）
   },
 
@@ -79,11 +79,11 @@ export const particleConfig = {
     enabled: true,        // 是否启用雪花
     count: 3000,          // 雪花数量
     color: 0xFFFFFF,      // 雪花颜色
-    range: 25.0,          // 雪花分布范围（xz平面大小）
-    height: 20.0,         // 雪花分布高度
+    range: 30.0,          // 雪花分布范围（xz平面大小）
+    height: 30.0,         // 雪花分布高度
     size: {
-      min: 0.15,          // 最小大小
-      max: 0.2            // 最大大小
+      min: 0.5,          // 最小大小
+      max: 0.8           // 最大大小
     },
     speed: {
       min: 0.005,         // 最小下落速度
@@ -103,8 +103,8 @@ export const particleConfig = {
     range: 20.0,         // 分布范围
     height: 20.0,        // 分布高度
     size: {
-      min: 0.1,          // 最小大小
-      max: 0.3           // 最大大小
+      min: 0.5,          // 最小大小
+      max: 1.5           // 最大大小
     },
     speed: {
       min: 0.01,         // 下落速度
