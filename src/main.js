@@ -869,8 +869,8 @@ function createStar() {
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
   // 创建发光材质，让五角星自身发光
-  // 使用 MeshBasicMaterial 并增强自发光效果
-  const material = new THREE.MeshBasicMaterial({
+  // 使用 MeshStandardMaterial 并增强自发光效果
+  const material = new THREE.MeshStandardMaterial({
     color: particleConfig.star.color,
     emissive: particleConfig.star.glowColor,
     emissiveIntensity: particleConfig.star.glowIntensity, // 直接使用配置强度
@@ -1235,7 +1235,7 @@ function createPhotoCards() {
       cardWidth + borderThickness * 2,
       cardHeight + borderThickness * 2
     );
-    const goldFrameMaterial = new THREE.MeshBasicMaterial({
+    const goldFrameMaterial = new THREE.MeshStandardMaterial({
       color: 0xFFD700, // 金色
       side: THREE.DoubleSide,
       emissive: 0xFFD700, // 自发光，让边框更亮
