@@ -114,6 +114,7 @@ function createParticleCone() {
       glowIntensity: { value: particleConfig.glow.intensity },
       glowColor: { value: new THREE.Color(particleConfig.glow.color) },
       yellowGlowColor: { value: new THREE.Color(particleConfig.yellowParticles.glowColor) },
+      yellowGlowIntensity: { value: particleConfig.yellowParticles.glowIntensity },
       glowBloom: { value: particleConfig.glow.bloom }
     },
     vertexShader: `
@@ -143,6 +144,7 @@ function createParticleCone() {
       uniform float glowIntensity;
       uniform vec3 glowColor;
       uniform vec3 yellowGlowColor;
+      uniform float yellowGlowIntensity;
       uniform float glowBloom;
       
       varying vec3 vColor;
@@ -182,19 +184,30 @@ function createParticleCone() {
           // glowBloom 越小，中心越亮，边缘衰减越快
           glowFactor = pow(glowFactor, 1.0 / glowBloom);
           
-          // 根据粒子类型选择发光颜色
-          vec3 particleGlowColor = vColorType > 0.5 ? yellowGlowColor : glowColor;
+          // 根据粒子类型选择发光颜色和强度
+          bool isYellow = vColorType > 0.5;
+          vec3 particleGlowColor = isYellow ? yellowGlowColor : glowColor;
+          float particleGlowIntensity = isYellow ? glowIntensity * yellowGlowIntensity : glowIntensity;
           
           // 计算自发光颜色：使用小球的基础颜色和发光颜色混合
-          vec3 baseGlowColor = mix(vColor, particleGlowColor, 0.5);
+          // 黄色粒子使用更多的发光颜色，让它们更亮
+          float colorMixRatio = isYellow ? 0.7 : 0.5;
+          vec3 baseGlowColor = mix(vColor, particleGlowColor, colorMixRatio);
           
           // 中心最亮，向外逐渐变暗
-          finalColor = baseGlowColor * glowIntensity * glowFactor;
+          finalColor = baseGlowColor * particleGlowIntensity * glowFactor;
           
           // 增强中心区域的亮度，让中心更突出
           float centerBoost = 1.0 - smoothstep(0.0, radius * 0.3, dist);
           centerBoost = pow(centerBoost, 3.0);
-          finalColor += particleGlowColor * glowIntensity * 0.8 * centerBoost;
+          finalColor += particleGlowColor * particleGlowIntensity * 0.8 * centerBoost;
+          
+          // 黄色粒子额外增强：添加更亮的中心光晕
+          if (isYellow) {
+            float brightCenter = 1.0 - smoothstep(0.0, radius * 0.2, dist);
+            brightCenter = pow(brightCenter, 2.0);
+            finalColor += yellowGlowColor * particleGlowIntensity * 0.5 * brightCenter;
+          }
         } else {
           // 如果发光未启用，使用基础颜色
           finalColor = vColor;
@@ -214,10 +227,77 @@ function createParticleCone() {
   return particleSystem;
 }
 
+// 创建五角星几何体
+function createStar() {
+  if (!particleConfig.star.enabled) return null;
+
+  const size = particleConfig.star.size;
+  const thickness = particleConfig.star.thickness;
+  const outerRadius = size;
+  const innerRadius = size * 0.4; // 内圆半径，形成五角星形状
+
+  const shape = new THREE.Shape();
+  const points = 5;
+
+  for (let i = 0; i < points * 2; i++) {
+    // 调整角度，使五角星的一个角朝上（正立）
+    const angle = (i * Math.PI) / points - Math.PI / 2;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+
+    if (i === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+
+  // 使用挤压几何体创建3D五角星
+  const extrudeSettings = {
+    depth: thickness,
+    bevelEnabled: false
+  };
+  const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+  // 创建发光材质
+  const material = new THREE.MeshBasicMaterial({
+    color: particleConfig.star.color,
+    emissive: particleConfig.star.glowColor,
+    emissiveIntensity: particleConfig.star.glowIntensity,
+    transparent: true,
+    opacity: 0.9
+  });
+
+  const star = new THREE.Mesh(geometry, material);
+
+  // 旋转使五角星竖立在 YZ 平面上（垂直放置），并调整角度使其正立
+  star.rotation.z = Math.PI / 2;
+  // 微调旋转，使五角星的一个角朝上
+  star.rotation.z += Math.PI / 10;
+
+  // 放置在圆锥顶部，应用位置偏移
+  star.position.set(
+    particleConfig.star.positionOffset.x,
+    particleConfig.cone.height + particleConfig.star.positionOffset.y,
+    particleConfig.star.positionOffset.z
+  );
+
+  return star;
+}
+
 // 创建粒子圆锥体
 const particleCone = createParticleCone();
 scene.add(particleCone);
 console.log('粒子圆锥体已创建，粒子数量:', particleCone.geometry.attributes.position.count / 3);
+
+// 创建并添加五角星
+const star = createStar();
+if (star) {
+  scene.add(star);
+  console.log('五角星已创建');
+}
 
 // 动画循环
 function animate() {

@@ -25,8 +25,9 @@ export const particleConfig = {
   yellowParticles: {
     enabled: true,       // 是否启用黄色粒子
     ratio: 0.15,         // 黄色粒子比例（0-1，0.15表示15%的粒子是黄色）
-    color: 0xFFD700,     // 黄色粒子颜色（金色）
-    glowColor: 0xFFD700  // 黄色粒子发光颜色
+    color: 0xFFFF00,     // 黄色粒子颜色（亮金色）
+    glowColor: 0xFFFF00, // 黄色粒子发光颜色（亮金色）
+    glowIntensity: 1.5   // 黄色粒子发光强度倍数（相对于基础发光强度）
   },
 
   // ========== 粒子外观参数 ==========
@@ -42,6 +43,21 @@ export const particleConfig = {
     intensity: 5.0,       // 发光强度（数值越大越亮，建议1.0-3.0）
     color: 0x228B22,      // 发光颜色（默认与基础颜色相同）
     bloom: 0.8            // 光晕衰减（数值越小，中心越亮边缘越暗，建议0.5-1.5）
+  },
+
+  // ========== 五角星参数 ==========
+  star: {
+    enabled: true,        // 是否启用五角星
+    size: 1,            // 五角星大小
+    color: 0xFFFF00,      // 五角星颜色（金色）
+    glowColor: 0xFFFF00, // 发光颜色
+    glowIntensity: 3.0,   // 发光强度
+    thickness: 0.1,       // 五角星厚度
+    positionOffset: {     // 位置偏移
+      x: 0,               // X 轴偏移
+      y: 0.5,               // Y 轴偏移（高度）
+      z: 0              // Z 轴偏移（前后位置，正值向前）
+    }
   }
 };
 
