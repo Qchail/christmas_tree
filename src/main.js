@@ -5,7 +5,8 @@ import { particleConfig } from './config.js';
 console.log('Three.js 版本:', THREE.REVISION);
 
 // ========== 照片管理系统 ==========
-const MAX_PHOTOS = 25;
+const MAX_PHOTOS = particleConfig.photoCards.maxPhotos || 40;
+const MAX_FILE_SIZE_MB = particleConfig.photoCards.maxFileSize || 25;
 const STORAGE_KEY = 'christmas_tree_photos';
 
 // 照片存储管理类
@@ -49,9 +50,9 @@ class PhotoManager {
       return false;
     }
 
-    // 检查文件大小 (限制为 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('图片大小不能超过 5MB');
+    // 检查文件大小
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      alert(`图片大小不能超过 ${MAX_FILE_SIZE_MB}MB`);
       return false;
     }
 
@@ -163,6 +164,15 @@ class PhotoManager {
     this.updatePhotoGrid();
   }
 
+  // 初始化 UI 文本（从配置文件读取）
+  initUIText() {
+    // 更新照片数量限制显示
+    const maxCountElements = document.querySelectorAll('.max-count, .max-count-text');
+    maxCountElements.forEach(el => {
+      el.textContent = MAX_PHOTOS;
+    });
+  }
+
   // 更新照片网格
   updatePhotoGrid() {
     const grid = document.getElementById('photo-grid');
@@ -200,6 +210,9 @@ const photoManager = new PhotoManager();
 
 // UI 事件处理
 document.addEventListener('DOMContentLoaded', () => {
+  // 初始化 UI 文本（从配置文件读取）
+  photoManager.initUIText();
+
   const uploadBtn = document.getElementById('upload-btn');
   const photoManagerPanel = document.getElementById('photo-manager');
   const managerClose = document.getElementById('manager-close');

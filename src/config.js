@@ -178,7 +178,9 @@ export const particleConfig = {
     cardWidth: 0.7,      // 卡片宽度
     cardHeight: 0.9,     // 卡片高度
     photoSize: 0.7,      // 照片大小
-    scatteredScale: 4  // 散开时的缩放倍数（元素散开时照片卡片放大）
+    scatteredScale: 4,   // 散开时的缩放倍数（元素散开时照片卡片放大）
+    maxPhotos: 40,       // 最多可上传的照片数量
+    maxFileSize: 25      // 单张照片最大大小（MB）
   },
 
   // ========== 相机旋转参数 ==========
