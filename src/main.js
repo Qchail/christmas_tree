@@ -1126,9 +1126,31 @@ function createPhotoCards() {
     frame.position.z = -0.001; // 在金色边框前面
     cardGroup.add(frame);
 
-    // 4. 加载照片纹理
-    const texture = loader.load(photoData.src);
-    // 确保纹理不过度拉伸，这里简单处理，实际可根据图片比例调整
+    // 4. 加载照片纹理，并在加载完成后根据图片比例调整纹理参数，避免拉伸变形
+    const texture = loader.load(
+      photoData.src,
+      // onLoad 回调
+      function (loadedTexture) {
+        if (loadedTexture.image) {
+          const imgWidth = loadedTexture.image.width;
+          const imgHeight = loadedTexture.image.height;
+          const imgAspect = imgWidth / imgHeight; // 图片宽高比
+          const cardAspect = 1.0; // 卡片是正方形，宽高比为1
+
+          // 使用 object-fit: cover 策略：保持图片比例，裁剪超出部分
+          if (imgAspect > cardAspect) {
+            // 图片更宽（横向），应该让高度完整显示(repeat.y=1)，宽度只显示中间部分(repeat.x<1)
+            loadedTexture.repeat.set(cardAspect / imgAspect, 1);
+            loadedTexture.offset.set((1 - cardAspect / imgAspect) / 2, 0);
+          } else {
+            // 图片更高（纵向），应该让宽度完整显示(repeat.x=1)，高度只显示中间部分(repeat.y<1)
+            loadedTexture.repeat.set(1, imgAspect / cardAspect);
+            loadedTexture.offset.set(0, (1 - imgAspect / cardAspect) / 2);
+          }
+          loadedTexture.needsUpdate = true;
+        }
+      }
+    );
     texture.colorSpace = THREE.SRGBColorSpace;
 
     // 5. 创建照片部分
