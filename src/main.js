@@ -213,8 +213,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 关闭照片管理面板
-  managerClose?.addEventListener('click', () => {
+  const closePhotoManager = () => {
     photoManagerPanel.classList.remove('active');
+  };
+
+  managerClose?.addEventListener('click', closePhotoManager);
+
+  // 点击面板外部（背景）关闭面板
+  photoManagerPanel?.addEventListener('click', (e) => {
+    // 如果点击的是背景层本身（不是内容区域），则关闭面板
+    if (e.target === photoManagerPanel) {
+      closePhotoManager();
+    }
+  });
+
+  // 阻止内容区域的点击事件冒泡，防止点击内容时关闭面板
+  const managerContent = document.getElementById('manager-content');
+  managerContent?.addEventListener('click', (e) => {
+    e.stopPropagation();
   });
 
   // 清空所有照片
