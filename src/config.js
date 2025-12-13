@@ -205,7 +205,8 @@ export const particleConfig = {
   // ========== 散开/聚集动画参数 ==========
   scatterAnimation: {
     scatterRange: 45,          // 散开范围（X和Z轴方向，数值越大散开越远）
-    scatterHeight: 30          // 散开高度范围（Y轴方向，数值越大散开越高）
+    scatterHeight: 30,         // 散开高度范围（Y轴方向，数值越大散开越高）
+    scatterDuration: 1000      // 元素散开/聚集持续时间（毫秒）
   }
 };
 

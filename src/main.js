@@ -2109,7 +2109,7 @@ let isScattered = false; // 当前状态：false=聚集，true=散开
 let animationProgress = 0; // 动画进度 0-1
 const ribbonFadeDuration = particleConfig.spiralRibbon.animation.fadeDuration; // 散开时光带消失的动画时长（毫秒）
 const gatherRibbonFadeDuration = particleConfig.spiralRibbon.animation.gatherFadeDuration || ribbonFadeDuration; // 聚拢时光带出现的动画时长（毫秒）
-const scatterDuration = 1500; // 元素散开持续时间（毫秒）
+const scatterDuration = particleConfig.scatterAnimation.scatterDuration || 1500; // 元素散开/聚集持续时间（毫秒）
 // 总动画时间：散开时 = ribbonFadeDuration + scatterDuration，聚拢时 = scatterDuration + gatherRibbonFadeDuration
 let animationStartTime = 0;
 let isAnimating = false;
@@ -2358,9 +2358,11 @@ function updateScatterAnimation() {
   const elapsed = currentTime - animationStartTime;
 
   // 根据当前状态计算总动画时长
+  // 散开时：光带消失和元素散开同时进行，总时长取两者中的较大值
+  // 聚拢时：光带出现和元素聚集同时进行，总时长取两者中的较大值
   const currentTotalDuration = isScattered
-    ? ribbonFadeDuration + scatterDuration
-    : scatterDuration + gatherRibbonFadeDuration;
+    ? Math.max(ribbonFadeDuration, scatterDuration)
+    : Math.max(scatterDuration, gatherRibbonFadeDuration);
   const totalProgress = Math.min(elapsed / currentTotalDuration, 1);
 
   // 分阶段动画
@@ -2379,17 +2381,12 @@ function updateScatterAnimation() {
       ribbonFadeProgress = 1;
     }
   } else {
-    // 聚集：元素聚集和画面缩放同时进行，光带出现稍后
+    // 聚集：元素聚集和光带出现同时进行
     // 计算元素聚集进度（使用整个动画时间，与画面缩放同步）
     scatterProgress = Math.min(elapsed / scatterDuration, 1);
-    // 计算光带出现进度（使用更长的动画时长）
-    if (elapsed < scatterDuration) {
-      // 第一阶段：光带保持消失状态
-      ribbonFadeProgress = 1;
-    } else {
-      // 第二阶段：光带从头部到尾部出现（使用更长的动画时长）
-      ribbonFadeProgress = 1 - Math.min((elapsed - scatterDuration) / gatherRibbonFadeDuration, 1);
-    }
+    // 计算光带出现进度（与元素聚集同时开始）
+    // 光带从头部到尾部出现，使用 gatherRibbonFadeDuration 作为动画时长
+    ribbonFadeProgress = 1 - Math.min(elapsed / gatherRibbonFadeDuration, 1);
   }
 
   const easedScatterProgress = easeInOutCubic(scatterProgress);
@@ -2506,16 +2503,10 @@ function updateScatterAnimation() {
       fadeProgressValue = easedRibbonProgress;
     } else {
       // 聚集时：fadeProgress从-1到0（从头部到尾部出现）
-      // 第一阶段（元素聚集）：fadeProgress保持为-1（光带完全消失）
-      // 第二阶段（光带出现）：fadeProgress从-1到0（使用更长的动画时长）
-      if (elapsed < scatterDuration) {
-        fadeProgressValue = -1.0; // 光带完全消失
-      } else {
-        // 第二阶段：从-1到0（使用更长的动画时长）
-        const ribbonProgress = Math.min((elapsed - scatterDuration) / gatherRibbonFadeDuration, 1);
-        const easedRibbonProgress2 = easeInOutCubic(ribbonProgress);
-        fadeProgressValue = -1.0 + easedRibbonProgress2; // 从-1到0
-      }
+      // 与元素聚集动画同时进行
+      const ribbonProgress = Math.min(elapsed / gatherRibbonFadeDuration, 1);
+      const easedRibbonProgress2 = easeInOutCubic(ribbonProgress);
+      fadeProgressValue = -1.0 + easedRibbonProgress2; // 从-1到0
     }
 
     spiralRibbon.children.forEach((child) => {
