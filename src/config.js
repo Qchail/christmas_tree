@@ -11,7 +11,7 @@ export const particleConfig = {
   size: {
     min: 0.2,            // 最小大小
     max: 0.6,            // 最大大小
-    scale: 200.0         // 着色器缩放因子（数值越大，小球越大）
+    scale: 300.0         // 着色器缩放因子（数值越大，小球越大）
   },
 
   // ========== 颜色参数 ==========
@@ -51,10 +51,10 @@ export const particleConfig = {
     size: 0.5,            // 五角星大小
     color: 0xFFFF00,      // 五角星颜色（金色）
     glowColor: 0xFFFF00, // 发光颜色
-    glowIntensity: 3.0,   // 发光强度
+    glowIntensity: 5.0,   // 发光强度
     thickness: 0.4,       // 五角星厚度（增加厚度让它更饱满）
     innerRadiusRatio: 0.65, // 内圆半径比例（0-1，数值越大越圆润饱满，默认0.4）
-    bevelSize: 0.05,     // 圆角大小（让边缘更圆润）
+    bevelSize: 0.01,     // 圆角大小（让边缘更圆润，数值越大圆角越明显）
     positionOffset: {     // 位置偏移
       x: 0,               // X 轴偏移
       y: 0.5,               // Y 轴偏移（高度）
@@ -64,7 +64,7 @@ export const particleConfig = {
     light: {
       enabled: true,      // 是否启用光源
       color: 0xFFFF00,    // 光源颜色（金色）
-      intensity: 20.0,     // 光源强度
+      intensity: 10.0,     // 光源强度
       distance: 15.0,     // 光源影响距离
       decay: 2.0          // 光源衰减（2.0 = 物理衰减）
     }
