@@ -51,7 +51,7 @@ export const particleConfig = {
     size: 0.3,            // 五角星大小
     color: 0xFFFF00,      // 五角星颜色（金色）
     glowColor: 0xFFFF00, // 发光颜色
-    glowIntensity: 5.0,   // 发光强度
+    glowIntensity: 1.0,   // 发光强度 (与黄色小球一致)
     thickness: 0.2,       // 五角星厚度（增加厚度让它更饱满）
     innerRadiusRatio: 0.6, // 内圆半径比例（0-1，数值越大越圆润饱满，默认0.4）
     bevelThickness: 0.1,  // 厚度边缘圆角深度（水平旋转时看到的侧面圆角，数值越大圆角越明显，建议0.05-0.2）
@@ -100,11 +100,23 @@ export const particleConfig = {
     enabled: true,
     count: 35,           // 增加一点数量
     radius: 0.25,        // 球体半径
-    color: 0xFFD700,     // 表面颜色 (纯金)
+    color: 0xFFFF00,     // 颜色 (与五角星一致 - 亮黄)
     metalness: 1.0,      // 金属度 (拉满，最强金属质感)
     roughness: 0.0,      // 粗糙度 (拉低，如镜面般光滑)
-    emissive: 0xFFAA00,  // 自发光颜色 (浓郁的暖金色)
-    emissiveIntensity: 0.8 // 自发光强度 (高强度，保证在黑暗中也闪亮)
+    emissive: 0xFFFF00,  // 自发光颜色 (与五角星一致)
+    emissiveIntensity: 1 // 自发光强度 (高强度，保证在黑暗中也闪亮)
+  },
+
+  // ========== 红色小球装饰 ==========
+  redOrnaments: {
+    enabled: true,
+    count: 30,           // 数量比金球多一些
+    radius: 0.25,        // 半径 (与金球一致)
+    color: 0xFF0000,     // 颜色 (纯红)
+    metalness: 0.9,      // 金属度
+    roughness: 0.1,      // 粗糙度
+    emissive: 0xFF0000,  // 自发光颜色 (红色)
+    emissiveIntensity: 1.5 // 自发光强度 (红色比较暗，需要更高的强度)
   }
 };
 
