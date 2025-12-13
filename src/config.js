@@ -21,6 +21,14 @@ export const particleConfig = {
     variationMax: 1.0    // 颜色亮度变化最大值
   },
 
+  // ========== 黄色粒子参数 ==========
+  yellowParticles: {
+    enabled: true,       // 是否启用黄色粒子
+    ratio: 0.15,         // 黄色粒子比例（0-1，0.15表示15%的粒子是黄色）
+    color: 0xFFD700,     // 黄色粒子颜色（金色）
+    glowColor: 0xFFD700  // 黄色粒子发光颜色
+  },
+
   // ========== 粒子外观参数 ==========
   appearance: {
     radius: 0.45,         // 粒子半径（0-0.5，影响圆形大小）

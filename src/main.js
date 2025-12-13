@@ -51,10 +51,19 @@ function createParticleCone() {
 
   // 从配置文件读取颜色
   const greenColor = new THREE.Color(particleConfig.color.base);
+  const yellowColor = new THREE.Color(particleConfig.yellowParticles.color);
 
   // 计算常量值（移到循环外，避免重复计算）
   const sizeRange = particleConfig.size.max - particleConfig.size.min;
   const colorVariationRange = particleConfig.color.variationMax - particleConfig.color.variationMin;
+
+  // 创建颜色类型数组（0=绿色，1=黄色）
+  const colorTypes = new Uint8Array(particleCount);
+  if (particleConfig.yellowParticles.enabled) {
+    for (let i = 0; i < particleCount; i++) {
+      colorTypes[i] = Math.random() < particleConfig.yellowParticles.ratio ? 1 : 0;
+    }
+  }
 
   for (let i = 0; i < particleCount; i++) {
     const i3 = i * 3;
@@ -79,16 +88,19 @@ function createParticleCone() {
     // 使用预计算的大小范围
     sizes[i] = particleConfig.size.min + Math.random() * sizeRange;
 
-    // 使用预计算的颜色变化范围
+    // 根据颜色类型设置颜色
+    const isYellow = colorTypes[i] === 1;
+    const baseColor = isYellow ? yellowColor : greenColor;
     const colorVariation = particleConfig.color.variationMin + Math.random() * colorVariationRange;
-    colors[i3] = greenColor.r * colorVariation;
-    colors[i3 + 1] = greenColor.g * colorVariation;
-    colors[i3 + 2] = greenColor.b * colorVariation;
+    colors[i3] = baseColor.r * colorVariation;
+    colors[i3 + 1] = baseColor.g * colorVariation;
+    colors[i3 + 2] = baseColor.b * colorVariation;
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('particleColor', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('colorType', new THREE.BufferAttribute(colorTypes, 1));
 
   // 创建着色器材质（带光泽效果）
   const material = new THREE.ShaderMaterial({
@@ -101,16 +113,20 @@ function createParticleCone() {
       glowEnabled: { value: particleConfig.glow.enabled ? 1.0 : 0.0 },
       glowIntensity: { value: particleConfig.glow.intensity },
       glowColor: { value: new THREE.Color(particleConfig.glow.color) },
+      yellowGlowColor: { value: new THREE.Color(particleConfig.yellowParticles.glowColor) },
       glowBloom: { value: particleConfig.glow.bloom }
     },
     vertexShader: `
       attribute float size;
       attribute vec3 particleColor;
+      attribute float colorType;
       uniform float pointSizeScale;
       varying vec3 vColor;
+      varying float vColorType;
       
       void main() {
         vColor = particleColor;
+        vColorType = colorType;
         
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         
@@ -126,9 +142,11 @@ function createParticleCone() {
       uniform float glowEnabled;
       uniform float glowIntensity;
       uniform vec3 glowColor;
+      uniform vec3 yellowGlowColor;
       uniform float glowBloom;
       
       varying vec3 vColor;
+      varying float vColorType;
       
       void main() {
         vec2 center = vec2(0.5, 0.5);
@@ -164,8 +182,11 @@ function createParticleCone() {
           // glowBloom 越小，中心越亮，边缘衰减越快
           glowFactor = pow(glowFactor, 1.0 / glowBloom);
           
+          // 根据粒子类型选择发光颜色
+          vec3 particleGlowColor = vColorType > 0.5 ? yellowGlowColor : glowColor;
+          
           // 计算自发光颜色：使用小球的基础颜色和发光颜色混合
-          vec3 baseGlowColor = mix(vColor, glowColor, 0.5);
+          vec3 baseGlowColor = mix(vColor, particleGlowColor, 0.5);
           
           // 中心最亮，向外逐渐变暗
           finalColor = baseGlowColor * glowIntensity * glowFactor;
@@ -173,7 +194,7 @@ function createParticleCone() {
           // 增强中心区域的亮度，让中心更突出
           float centerBoost = 1.0 - smoothstep(0.0, radius * 0.3, dist);
           centerBoost = pow(centerBoost, 3.0);
-          finalColor += glowColor * glowIntensity * 0.8 * centerBoost;
+          finalColor += particleGlowColor * glowIntensity * 0.8 * centerBoost;
         } else {
           // 如果发光未启用，使用基础颜色
           finalColor = vColor;
