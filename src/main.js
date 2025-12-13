@@ -762,6 +762,127 @@ function createGoldFoilSystem() {
   return new THREE.Points(geometry, material);
 }
 
+// 这里的图片列表
+const availableImages = [
+  'IMG_6772.JPG', 'IMG_6776.JPG', 'IMG_6782.JPG', 'IMG_6791.JPG',
+  'IMG_6812.JPG', 'IMG_6813.JPG', 'IMG_6817.JPG', 'IMG_6823.JPG',
+  'IMG_6825.JPG', 'IMG_6831.JPG', 'IMG_6847.JPG', 'IMG_6848.JPG',
+  'IMG_6853.JPG', 'IMG_6854.JPG', 'IMG_6859.JPG', 'IMG_6860.JPG',
+  'IMG_6861.JPG', 'IMG_6862.JPG', 'IMG_6863.JPG', 'IMG_6867.JPG',
+  'IMG_6869.JPG', 'IMG_6870.JPG', 'IMG_6872.JPG', 'IMG_6874.JPG',
+  'IMG_6875.JPG', 'IMG_6876.JPG', 'IMG_6881.JPG', 'IMG_6882.JPG',
+  'IMG_6893.JPG', 'IMG_6896.JPG', 'IMG_6897.JPG', 'IMG_6904.JPG',
+  'IMG_6908.JPG', 'IMG_6914.JPG', 'IMG_6923.JPG', 'IMG_6927.JPG',
+  'IMG_6929.JPG', 'IMG_6930.JPG', 'IMG_6940.JPG', 'IMG_6941.JPG',
+  'IMG_6944.JPG'
+];
+
+// 随机选择图片
+function getRandomImages(count) {
+  const shuffled = [...availableImages].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
+// 创建照片卡片系统
+function createPhotoCards() {
+  if (!particleConfig.photoCards || !particleConfig.photoCards.enabled) return null;
+
+  const count = particleConfig.photoCards.count;
+  const selectedImages = getRandomImages(count);
+  const group = new THREE.Group();
+  const loader = new THREE.TextureLoader();
+
+  // 照片卡片尺寸
+  const cardWidth = particleConfig.photoCards.cardWidth;
+  const cardHeight = particleConfig.photoCards.cardHeight;
+  const photoSize = particleConfig.photoCards.photoSize;
+
+  const treeHeight = particleConfig.cone.height;
+  const baseRadius = particleConfig.cone.baseRadius;
+
+  selectedImages.forEach((imgName, index) => {
+    // 1. 创建卡片组（包含边框和照片）
+    const cardGroup = new THREE.Group();
+
+    // 2. 创建白色边框（背景）
+    const frameGeometry = new THREE.PlaneGeometry(cardWidth, cardHeight);
+    const frameMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      side: THREE.DoubleSide
+    });
+    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+    // 翻转边框，让白色背景朝向树中心（内侧）
+    frame.rotateY(Math.PI);
+    cardGroup.add(frame);
+
+    // 3. 加载照片纹理
+    const texture = loader.load(`/images/${imgName}`);
+    // 确保纹理不过度拉伸，这里简单处理，实际可根据图片比例调整
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    // 4. 创建照片部分
+    const photoGeometry = new THREE.PlaneGeometry(photoSize, photoSize);
+    const photoMaterial = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide
+    });
+    const photo = new THREE.Mesh(photoGeometry, photoMaterial);
+    photo.position.y = 0.1; // 稍微向上偏移，留出下方空白写字的感觉
+    photo.position.z = 0.01; // 稍微在边框前面，防止Z-fighting
+
+    // 给照片添加 userData，存储图片路径，方便点击时获取
+    photo.userData = {
+      isPhoto: true,
+      imageSrc: `/images/${imgName}`,
+      parentGroup: cardGroup
+    };
+    frame.userData = { // 边框也加上，方便点击判定
+      isPhoto: true,
+      imageSrc: `/images/${imgName}`,
+      parentGroup: cardGroup
+    };
+
+    cardGroup.add(photo);
+
+    // 5. 围绕圣诞树均匀分布
+    // 高度随机分布
+    const y = Math.random() * (treeHeight * 0.7) + treeHeight * 0.15; // 避开最顶部和最底部
+    const currentRadius = baseRadius * (1 - y / treeHeight);
+
+    // 角度均匀分布，让照片围绕树圆周均匀摆放
+    const angle = (index / count) * Math.PI * 2;
+    const r = currentRadius + 0.5; // 稍微悬浮在树表面外
+
+    const x = Math.cos(angle) * r;
+    const z = Math.sin(angle) * r;
+
+    cardGroup.position.set(x, y, z);
+
+    // 6. 竖直悬挂，图片朝外，白色背景朝内
+    // 使用 lookAt 让卡片正面（+Z）直接朝向外部（沿半径向外）
+    // 目标点设为当前位置沿半径向外延伸的点（保持y不变以保持竖直）
+    cardGroup.lookAt(x * 2, y, z * 2);
+
+    // 此时：
+    // - 照片的正面（图片）朝向外侧 ✓
+    // - 边框已被翻转180度，其正面（白色）朝向内侧 ✓
+    // - 卡片保持竖直 ✓
+
+    // 存储原始缩放和旋转，用于hover效果恢复
+    cardGroup.userData.originalScale = cardGroup.scale.clone();
+    cardGroup.userData.originalRotation = cardGroup.rotation.clone();
+
+    group.add(cardGroup);
+  });
+
+  return group;
+}
+
+// 交互相关的变量
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredCard = null;
+
 // 通用创建装饰球函数
 function createOrnamentGroup(config) {
   if (!config.enabled) return null;
@@ -1255,6 +1376,108 @@ if (ornaments) {
   dirLight.position.set(5, 10, 7);
   scene.add(dirLight);
 }
+
+// 创建并添加照片卡片
+const photoCards = createPhotoCards();
+if (photoCards) {
+  scene.add(photoCards);
+  console.log('照片卡片已创建');
+}
+
+// 处理鼠标移动（Hover效果）
+window.addEventListener('mousemove', (event) => {
+  // 计算鼠标在归一化设备坐标中的位置 (-1 到 +1)
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // 更新射线
+  raycaster.setFromCamera(mouse, camera);
+
+  // 计算物体交点
+  if (photoCards) {
+    // 递归检测 photoCards 组中的所有子对象
+    // 注意：我们需要检测的是 cardGroup 里的 mesh
+    const intersects = raycaster.intersectObjects(photoCards.children, true);
+
+    if (intersects.length > 0) {
+      // 获取最上面的对象
+      const object = intersects[0].object;
+
+      // 检查是否是照片或边框
+      if (object.userData.isPhoto) {
+        const cardGroup = object.userData.parentGroup;
+
+        if (hoveredCard !== cardGroup) {
+          // 如果之前有悬停的卡片，先恢复
+          if (hoveredCard) {
+            hoveredCard.scale.copy(hoveredCard.userData.originalScale);
+          }
+
+          // 设置新的悬停卡片
+          hoveredCard = cardGroup;
+
+          // 放大效果
+          hoveredCard.scale.set(1.2, 1.2, 1.2);
+
+          // 改变光标
+          document.body.style.cursor = 'pointer';
+        }
+        return; // 找到交点后返回
+      }
+    }
+  }
+
+  // 如果没有交点或交点不是照片
+  if (hoveredCard) {
+    hoveredCard.scale.copy(hoveredCard.userData.originalScale);
+    hoveredCard = null;
+    document.body.style.cursor = 'default';
+    updateCursor(); // 恢复默认光标逻辑（检查空格键状态）
+  }
+});
+
+// 处理鼠标点击（打开照片）
+window.addEventListener('click', (event) => {
+  // 只有在左键点击且没有拖动时才触发（防止旋转视角时误触）
+  if (event.button === 0 && !isDragging) {
+    if (hoveredCard) {
+      // 获取图片路径
+      const imageSrc = hoveredCard.children.find(c => c.userData.imageSrc)?.userData.imageSrc;
+      if (imageSrc) {
+        openPhotoOverlay(imageSrc);
+      }
+    }
+  }
+});
+
+// 照片遮罩层逻辑
+const overlay = document.getElementById('photo-overlay');
+const overlayImg = document.getElementById('photo-img');
+const closeBtn = document.getElementById('close-btn');
+
+function openPhotoOverlay(src) {
+  overlayImg.src = src;
+  overlay.classList.add('active');
+  // 暂停自动旋转
+  controls.autoRotate = false;
+}
+
+function closePhotoOverlay() {
+  overlay.classList.remove('active');
+  // 延迟清空图片，避免视觉跳动
+  setTimeout(() => {
+    overlayImg.src = '';
+  }, 500);
+  // 恢复自动旋转
+  controls.autoRotate = true;
+}
+
+closeBtn.addEventListener('click', closePhotoOverlay);
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay || e.target.id === 'photo-container') {
+    closePhotoOverlay();
+  }
+});
 
 // 创建并添加螺旋光带
 const spiralRibbon = createSpiralRibbon();

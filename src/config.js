@@ -148,6 +148,15 @@ export const particleConfig = {
     sparkleSpeed: 4.5,   // 闪光速度（更快的闪光，布灵布灵效果）
     sparkleIntensity: 3.5, // 闪光强度（大幅增强闪光效果，创造布灵布灵感）
     offset: 0.15         // 距离树表面的偏移量（稍微远离，更明显）
+  },
+
+  // ========== 照片卡片参数 ==========
+  photoCards: {
+    enabled: true,       // 是否启用照片卡片
+    count: 20,           // 卡片数量
+    cardWidth: 0.5,      // 卡片宽度
+    cardHeight: 0.65,     // 卡片高度
+    photoSize: 0.5       // 照片大小
   }
 };
 
