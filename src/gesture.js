@@ -67,7 +67,7 @@ export class GestureController {
       height: 240
     });
 
-    this.statusElement.textContent = '点击开启摄像头';
+    this.statusElement.textContent = '点击开启摄像头启动手势控制';
   }
 
   async toggle() {
@@ -87,6 +87,12 @@ export class GestureController {
       this.isActive = true;
       this.statusElement.textContent = '摄像头已启动';
       document.getElementById('gesture-container').classList.add('active');
+
+      // 切换到手势说明
+      const instructions = document.getElementById('instructions');
+      const gestureInstructions = document.getElementById('gesture-instructions');
+      if (instructions) instructions.classList.add('hidden');
+      if (gestureInstructions) gestureInstructions.classList.add('visible');
 
       setTimeout(() => {
         if (this.isActive) {
@@ -110,10 +116,16 @@ export class GestureController {
     }
 
     this.isActive = false;
-    this.statusElement.textContent = '点击开启摄像头';
+    this.statusElement.textContent = '点击开启摄像头启动手势控制';
     this.statusElement.style.display = 'block';
     this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
     document.getElementById('gesture-container').classList.remove('active');
+
+    // 切换回键鼠说明
+    const instructions = document.getElementById('instructions');
+    const gestureInstructions = document.getElementById('gesture-instructions');
+    if (instructions) instructions.classList.remove('hidden');
+    if (gestureInstructions) gestureInstructions.classList.remove('visible');
   }
 
   onResults(results) {

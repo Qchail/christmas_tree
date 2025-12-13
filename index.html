@@ -352,6 +352,13 @@
       user-select: none;
       font-family: Arial, sans-serif;
       text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+      transition: opacity 0.3s ease;
+    }
+
+    #instructions.hidden {
+      opacity: 0;
+      pointer-events: none;
+      display: none;
     }
 
     #instructions .instruction-item {
@@ -363,6 +370,42 @@
       padding-top: 10px;
       border-top: 1px solid rgba(255, 215, 0, 0.3);
       color: #ff9;
+    }
+
+    /* 手势操作说明 */
+    #gesture-instructions {
+      position: fixed;
+      bottom: 24px;
+      left: 36px;
+      color: #ffd700;
+      font-size: 14px;
+      line-height: 1.8;
+      z-index: 100;
+      pointer-events: none;
+      user-select: none;
+      font-family: Arial, sans-serif;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+      transition: opacity 0.3s ease;
+      display: none;
+    }
+
+    #gesture-instructions.visible {
+      display: block;
+      opacity: 1;
+    }
+
+    .gesture-instruction-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #ffd700;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+      padding-bottom: 6px;
+    }
+
+    .gesture-instruction-item {
+      margin-bottom: 4px;
+      color: #ffd700;
     }
 
     /* 手势控制容器 */
@@ -475,6 +518,12 @@
         line-height: 1.6;
       }
 
+      #gesture-instructions {
+        font-size: 12px;
+        bottom: 15px;
+        left: 15px;
+      }
+
       #gesture-container {
         width: 120px;
         height: 90px;
@@ -491,17 +540,24 @@
 
   <div id="merry-christmas">MERRY CHRISTMAS</div>
   <div id="instructions">
-    <div class="instruction-item">① 鼠标左键: 拖动旋转画面</div>
-    <div class="instruction-item">② 空格键: 平移画面</div>
-    <div class="instruction-item">③ S 键: 随机放大一张照片</div>
-    <div class="instruction-item">④ R 键: 恢复相机到初始状态</div>
-    <div class="instruction-item">⑤ Esc 键: 关闭放大的照片</div>
-    <div class="instruction-item">⑥ Enter 键: 打散/聚拢圣诞树</div>
+    <div class="gesture-instruction-title">🖱 键鼠操作</div>
+    <div class="instruction-item">鼠标左键: 拖动旋转画面</div>
+    <div class="instruction-item">空格键: 平移画面</div>
+    <div class="instruction-item">S 键: 随机放大一张照片</div>
+    <div class="instruction-item">R 键: 恢复相机到初始状态</div>
+    <div class="instruction-item">Esc 键: 关闭放大的照片</div>
+    <div class="instruction-item">Enter 键: 打散/聚拢圣诞树</div>
+  </div>
 
-    <div class="gesture-hint">
-      <div class="instruction-item">👋 摄像头手势识别已启用</div>
-      <div class="instruction-item">点击右下角窗口开启/关闭显示</div>
-    </div>
+  <!-- 手势操作说明 -->
+  <div id="gesture-instructions">
+    <div class="gesture-instruction-title">👋 手势操作</div>
+    <div class="gesture-instruction-item">✊ → ✋ 散开圣诞树</div>
+    <div class="gesture-instruction-item">✋ → ✊ 聚拢圣诞树</div>
+    <div class="gesture-instruction-item">✌🏻 随机查看照片</div>
+    <div class="gesture-instruction-item">👆 移动光标</div>
+    <div class="gesture-instruction-item">🤏 捏合拖拽画面</div>
+    <div class="gesture-instruction-item">🖐️ 手掌缩放画面</div>
   </div>
 
   <!-- 手势控制容器 -->
