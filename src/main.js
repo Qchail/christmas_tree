@@ -2107,9 +2107,10 @@ let isInitialRibbonAnimating = true; // 初始动画是否正在进行
 // ========== 散开/聚集动画系统 ==========
 let isScattered = false; // 当前状态：false=聚集，true=散开
 let animationProgress = 0; // 动画进度 0-1
-const ribbonFadeDuration = particleConfig.spiralRibbon.animation.fadeDuration; // 光带渐变持续时间（毫秒）
+const ribbonFadeDuration = particleConfig.spiralRibbon.animation.fadeDuration; // 散开时光带消失的动画时长（毫秒）
+const gatherRibbonFadeDuration = particleConfig.spiralRibbon.animation.gatherFadeDuration || ribbonFadeDuration; // 聚拢时光带出现的动画时长（毫秒）
 const scatterDuration = 1500; // 元素散开持续时间（毫秒）
-const totalAnimationDuration = ribbonFadeDuration + scatterDuration; // 总动画时间
+// 总动画时间：散开时 = ribbonFadeDuration + scatterDuration，聚拢时 = scatterDuration + gatherRibbonFadeDuration
 let animationStartTime = 0;
 let isAnimating = false;
 
@@ -2355,7 +2356,12 @@ function updateScatterAnimation() {
 
   const currentTime = Date.now();
   const elapsed = currentTime - animationStartTime;
-  const totalProgress = Math.min(elapsed / totalAnimationDuration, 1);
+
+  // 根据当前状态计算总动画时长
+  const currentTotalDuration = isScattered
+    ? ribbonFadeDuration + scatterDuration
+    : scatterDuration + gatherRibbonFadeDuration;
+  const totalProgress = Math.min(elapsed / currentTotalDuration, 1);
 
   // 分阶段动画
   let ribbonFadeProgress = 0; // 光带渐变进度
@@ -2376,13 +2382,13 @@ function updateScatterAnimation() {
     // 聚集：元素聚集和画面缩放同时进行，光带出现稍后
     // 计算元素聚集进度（使用整个动画时间，与画面缩放同步）
     scatterProgress = Math.min(elapsed / scatterDuration, 1);
-    // 计算光带出现进度
+    // 计算光带出现进度（使用更长的动画时长）
     if (elapsed < scatterDuration) {
       // 第一阶段：光带保持消失状态
       ribbonFadeProgress = 1;
     } else {
-      // 第二阶段：光带从头部到尾部出现
-      ribbonFadeProgress = 1 - Math.min((elapsed - scatterDuration) / ribbonFadeDuration, 1);
+      // 第二阶段：光带从头部到尾部出现（使用更长的动画时长）
+      ribbonFadeProgress = 1 - Math.min((elapsed - scatterDuration) / gatherRibbonFadeDuration, 1);
     }
   }
 
@@ -2501,12 +2507,12 @@ function updateScatterAnimation() {
     } else {
       // 聚集时：fadeProgress从-1到0（从头部到尾部出现）
       // 第一阶段（元素聚集）：fadeProgress保持为-1（光带完全消失）
-      // 第二阶段（光带出现）：fadeProgress从-1到0
+      // 第二阶段（光带出现）：fadeProgress从-1到0（使用更长的动画时长）
       if (elapsed < scatterDuration) {
         fadeProgressValue = -1.0; // 光带完全消失
       } else {
-        // 第二阶段：从-1到0
-        const ribbonProgress = Math.min((elapsed - scatterDuration) / ribbonFadeDuration, 1);
+        // 第二阶段：从-1到0（使用更长的动画时长）
+        const ribbonProgress = Math.min((elapsed - scatterDuration) / gatherRibbonFadeDuration, 1);
         const easedRibbonProgress2 = easeInOutCubic(ribbonProgress);
         fadeProgressValue = -1.0 + easedRibbonProgress2; // 从-1到0
       }
@@ -3042,8 +3048,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 根据手掌大小变化缩放画面
         if (!controls) return;
 
-        // 调整灵敏度
-        const zoomSpeed = 0.5;
+        // 调整灵敏度（值越小越不敏感，0.2 表示较低的敏感度）
+        const zoomSpeed = 0.2;
         const factor = Math.pow(scale, zoomSpeed);
 
         // 手动计算缩放 (改变相机与目标的距离)
