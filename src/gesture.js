@@ -257,13 +257,13 @@ export class GestureController {
         this.callbacks.onGather();
       }
 
-      // 进入单指模式 : 随机看照片
+      // 进入比耶手势 : 随机看照片
       if (gesture === 'INDEX_POINTING') {
-        this.showStatus('识别: 随机照片');
+        this.showStatus('识别: 比耶✌🏻 随机照片');
         this.callbacks.onIndexPointing();
       }
 
-      // 退出单指模式 : 关闭照片
+      // 退出比耶手势 : 关闭照片
       if (this.lastGesture === 'INDEX_POINTING') {
         this.callbacks.onIndexPointingEnd();
       }
@@ -291,13 +291,16 @@ export class GestureController {
     const pinkyBent = isBent(20);  // 小指
     const thumbBent = isBent(4);   // 拇指
 
-    let bentCount = (indexBent ? 1 : 0) + (middleBent ? 1 : 0) + (ringBent ? 1 : 0) + (pinkyBent ? 1 : 0);
+    // 比耶手势（✌🏻）：优先检测
+    // 核心特征：食指和中指伸直，其他手指弯曲
+    // 使用更宽松的检测：只要食指和中指伸直，且无名指和小指至少有一个弯曲
+    const isVictory = !indexBent && !middleBent && (ringBent || pinkyBent);
 
-    // 单指模式：食指伸直，其他四指（包括拇指）弯曲
-    // 增加 thumbBent 判断，防止"手枪"手势（食指+拇指）误触
-    if (!indexBent && middleBent && ringBent && pinkyBent && thumbBent) {
+    if (isVictory) {
       return 'INDEX_POINTING';
     }
+
+    let bentCount = (indexBent ? 1 : 0) + (middleBent ? 1 : 0) + (ringBent ? 1 : 0) + (pinkyBent ? 1 : 0);
 
     if (bentCount >= 4) return 'FIST'; // 握拳：4指都弯曲 (比之前严格，避免误判)
     if (bentCount <= 1) return 'OPEN'; // 伸掌：大部分手指伸直
