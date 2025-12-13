@@ -1911,7 +1911,8 @@ const originalPositions = {
   star: null,
   ornaments: [], // 装饰球组的每个球的位置
   photoCards: [], // 照片卡片的每个卡片的位置
-  spiralRibbon: null
+  spiralRibbon: null,
+  camera: null // 原始相机位置
 };
 
 // 散开目标位置
@@ -1989,6 +1990,9 @@ function saveOriginalPositions() {
   if (spiralRibbon) {
     originalPositions.spiralRibbon = spiralRibbon.position.clone();
   }
+
+  // 保存原始相机位置
+  originalPositions.camera = camera.position.clone();
 }
 
 // 生成散开位置
@@ -2134,28 +2138,29 @@ function updateScatterAnimation() {
 
   // 分阶段动画
   let ribbonFadeProgress = 0; // 光带渐变进度
-  let scatterProgress = 0; // 元素散开进度
+  let scatterProgress = 0; // 元素散开进度（与画面缩放同步）
 
   if (isScattered) {
-    // 散开：第一阶段光带消失，第二阶段元素散开
+    // 散开：元素散开和画面缩放同时进行，光带消失也同时进行
+    // 计算元素散开进度（使用整个动画时间，与画面缩放同步）
+    scatterProgress = Math.min(elapsed / scatterDuration, 1);
+    // 计算光带消失进度
     if (elapsed < ribbonFadeDuration) {
-      // 第一阶段：光带从尾部到头部消失
+      // 光带从尾部到头部消失
       ribbonFadeProgress = Math.min(elapsed / ribbonFadeDuration, 1);
-      scatterProgress = 0;
     } else {
-      // 第二阶段：元素散开
       ribbonFadeProgress = 1;
-      scatterProgress = Math.min((elapsed - ribbonFadeDuration) / scatterDuration, 1);
     }
   } else {
-    // 聚集：第一阶段元素聚集，第二阶段光带出现
+    // 聚集：元素聚集和画面缩放同时进行，光带出现稍后
+    // 计算元素聚集进度（使用整个动画时间，与画面缩放同步）
+    scatterProgress = Math.min(elapsed / scatterDuration, 1);
+    // 计算光带出现进度
     if (elapsed < scatterDuration) {
-      // 第一阶段：元素聚集
-      scatterProgress = Math.min(elapsed / scatterDuration, 1);
+      // 第一阶段：光带保持消失状态
       ribbonFadeProgress = 1;
     } else {
       // 第二阶段：光带从头部到尾部出现
-      scatterProgress = 1;
       ribbonFadeProgress = 1 - Math.min((elapsed - scatterDuration) / ribbonFadeDuration, 1);
     }
   }
@@ -2163,7 +2168,7 @@ function updateScatterAnimation() {
   const easedScatterProgress = easeInOutCubic(scatterProgress);
   const easedRibbonProgress = easeInOutCubic(ribbonFadeProgress);
 
-  // 更新粒子系统位置（只在第二阶段执行）
+  // 更新粒子系统位置（与画面缩放同步进行）
   if (scatterProgress > 0 && particleCone && particleCone.geometry && originalPositions.particleCone && scatteredPositions.particleCone) {
     const positions = particleCone.geometry.attributes.position.array;
     for (let i = 0; i < positions.length; i += 3) {
@@ -2182,7 +2187,7 @@ function updateScatterAnimation() {
     particleCone.geometry.attributes.position.needsUpdate = true;
   }
 
-  // 更新五角星位置（只在第二阶段执行）
+  // 更新五角星位置（与画面缩放同步进行）
   if (scatterProgress > 0 && star && originalPositions.star) {
     if (isScattered && scatteredPositions.star) {
       star.position.lerpVectors(originalPositions.star, scatteredPositions.star, easedScatterProgress);
@@ -2193,7 +2198,7 @@ function updateScatterAnimation() {
     }
   }
 
-  // 更新装饰球位置（只在第二阶段执行）
+  // 更新装饰球位置（与画面缩放同步进行）
   if (scatterProgress > 0 && ornaments && originalPositions.ornaments.length > 0 && scatteredPositions.ornaments.length > 0) {
     originalPositions.ornaments.forEach((item, index) => {
       if (item.mesh && scatteredPositions.ornaments[index]) {
@@ -2225,7 +2230,7 @@ function updateScatterAnimation() {
     });
   }
 
-  // 更新照片卡片位置和缩放（只在第二阶段执行）
+  // 更新照片卡片位置和缩放（与画面缩放同步进行）
   if (scatterProgress > 0 && photoCards && originalPositions.photoCards.length > 0 && scatteredPositions.photoCards.length > 0) {
     const scatteredScale = particleConfig.photoCards.scatteredScale || 1.5; // 从配置读取散开时的缩放倍数
     originalPositions.photoCards.forEach((item, index) => {
@@ -2257,7 +2262,7 @@ function updateScatterAnimation() {
     });
   }
 
-  // 更新彩带位置（只在第二阶段执行）
+  // 更新彩带位置（与画面缩放同步进行）
   if (scatterProgress > 0 && spiralRibbon && originalPositions.spiralRibbon) {
     if (isScattered && scatteredPositions.spiralRibbon) {
       spiralRibbon.position.lerpVectors(originalPositions.spiralRibbon, scatteredPositions.spiralRibbon, easedScatterProgress);
@@ -2293,6 +2298,45 @@ function updateScatterAnimation() {
     });
   }
 
+  // 更新相机缩放（整体画面缩放）和旋转速度（与元素散开同步）
+  if (scatterProgress > 0) {
+    // 更新相机旋转速度（根据动画进度逐步变化）
+    if (isScattered) {
+      // 散开：从原始速度逐渐加快到散开速度
+      controls.autoRotateSpeed = originalAutoRotateSpeed + (scatteredAutoRotateSpeed - originalAutoRotateSpeed) * easedScatterProgress;
+    } else {
+      // 聚集：从散开速度逐渐恢复到原始速度
+      controls.autoRotateSpeed = scatteredAutoRotateSpeed + (originalAutoRotateSpeed - scatteredAutoRotateSpeed) * easedScatterProgress;
+    }
+
+    // 更新相机位置（画面缩放）
+    if (originalPositions.camera) {
+      const scatteredCameraScale = particleConfig.camera.scatteredScale || 0.8;
+      const target = controls.target;
+
+      // 计算从目标点到原始相机位置的向量（只为了获取原始距离）
+      const originalDirection = new THREE.Vector3().subVectors(originalPositions.camera, target);
+      const originalDistance = originalDirection.length();
+
+      // 计算目标距离（散开时缩小）
+      const targetDistance = originalDistance * scatteredCameraScale;
+
+      // 根据动画进度插值距离
+      let currentDistance;
+      if (isScattered) {
+        // 散开：从原始距离缩小到目标距离
+        currentDistance = originalDistance + (targetDistance - originalDistance) * easedScatterProgress;
+      } else {
+        // 聚集：从缩小距离恢复到原始距离
+        currentDistance = targetDistance + (originalDistance - targetDistance) * easedScatterProgress;
+      }
+
+      // 使用当前相机方向，而不是原始方向，以允许同时进行旋转动画
+      const currentDirection = new THREE.Vector3().subVectors(camera.position, target).normalize();
+      camera.position.copy(target).add(currentDirection.multiplyScalar(currentDistance));
+    }
+  }
+
   // 更新光源位置（如果五角星移动）
   if (starLight && star) {
     starLight.position.copy(star.position);
@@ -2307,6 +2351,8 @@ function updateScatterAnimation() {
     // 如果散开动画结束，保存当前实际位置（为下次聚集做准备）
     if (isScattered) {
       saveCurrentScatteredPositions();
+      // 确保旋转速度设置为散开速度
+      controls.autoRotateSpeed = scatteredAutoRotateSpeed;
     } else {
       // 聚集动画结束：恢复原始旋转速度
       controls.autoRotateSpeed = originalAutoRotateSpeed;
@@ -2336,6 +2382,27 @@ function updateScatterAnimation() {
         }
       });
     }
+    // 确保相机位置状态正确
+    if (originalPositions.camera) {
+      const scatteredCameraScale = particleConfig.camera.scatteredScale || 0.8;
+      const target = controls.target;
+      const originalDirection = new THREE.Vector3().subVectors(originalPositions.camera, target);
+      const originalDistance = originalDirection.length();
+
+      // 计算最终距离
+      let finalDistance;
+      if (isScattered) {
+        // 散开状态：相机拉近
+        finalDistance = originalDistance * scatteredCameraScale;
+      } else {
+        // 聚集状态：恢复原始距离
+        finalDistance = originalDistance;
+      }
+
+      // 使用当前方向设置最终距离，保持旋转角度
+      const currentDirection = new THREE.Vector3().subVectors(camera.position, target).normalize();
+      camera.position.copy(target).add(currentDirection.multiplyScalar(finalDistance));
+    }
     // 确保光源位置在动画结束时被正确更新
     if (starLight && star) {
       starLight.position.copy(star.position);
@@ -2355,13 +2422,12 @@ function toggleScatter() {
   animationStartTime = Date.now();
 
   if (isScattered) {
-    // 散开：加快画面旋转速度
-    controls.autoRotateSpeed = scatteredAutoRotateSpeed;
     // 散开：如果还没有散开位置，则生成新的随机位置
     // 如果已经有散开位置（从上次散开保存的），则使用保存的位置
     if (!scatteredPositions.particleCone || !scatteredPositions.star) {
       generateScatteredPositions();
     }
+    // 注意：旋转速度现在在动画循环中根据进度逐步变化，不再立即设置
   }
 }
 
