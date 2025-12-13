@@ -704,19 +704,19 @@ function createGoldFoilSystem() {
         // 模拟法线方向随旋转变化
         vec3 normal = normalize(vec3(rotY, rotX, 1.0));
         vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-        float specular = pow(max(dot(normal, lightDir), 0.0), 10.0);
+        float specular = pow(max(dot(normal, lightDir), 0.0), 8.0);
         
         // 基础闪烁
-        float flash = sin(time * 5.0 + vPhase * 2.0);
+        float flash = sin(time * 8.0 + vPhase * 3.0);
         
         vec3 finalColor = color;
         
         // 强烈的高光时刻
-        if (specular > 0.8 || flash > 0.9) {
-           finalColor = mix(color, vec3(1.0), 0.8);
+        if (specular > 0.6 || flash > 0.5) {
+           finalColor = mix(color, vec3(1.0), 0.9);
         } else {
            // 根据旋转角度产生的明暗变化
-           float shading = 0.5 + 0.5 * max(abs(rotX), abs(rotY));
+           float shading = 0.6 + 0.4 * max(abs(rotX), abs(rotY));
            finalColor = color * shading;
         }
         
