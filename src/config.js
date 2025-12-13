@@ -59,6 +59,14 @@ export const particleConfig = {
       x: 0,               // X 轴偏移
       y: 0.5,               // Y 轴偏移（高度）
       z: -0.2              // Z 轴偏移（前后位置，正值向前）
+    },
+    // 光源参数
+    light: {
+      enabled: true,      // 是否启用光源
+      color: 0xFFFF00,    // 光源颜色（金色）
+      intensity: 20.0,     // 光源强度
+      distance: 15.0,     // 光源影响距离
+      decay: 2.0          // 光源衰减（2.0 = 物理衰减）
     }
   }
 };

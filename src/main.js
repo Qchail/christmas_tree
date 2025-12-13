@@ -115,19 +115,34 @@ function createParticleCone() {
       glowColor: { value: new THREE.Color(particleConfig.glow.color) },
       yellowGlowColor: { value: new THREE.Color(particleConfig.yellowParticles.glowColor) },
       yellowGlowIntensity: { value: particleConfig.yellowParticles.glowIntensity },
-      glowBloom: { value: particleConfig.glow.bloom }
+      glowBloom: { value: particleConfig.glow.bloom },
+      starLightEnabled: { value: particleConfig.star.light.enabled ? 1.0 : 0.0 },
+      starLightPosition: { value: new THREE.Vector3(0, 0, 0) },
+      starLightColor: { value: new THREE.Color(particleConfig.star.light.color) },
+      starLightIntensity: { value: particleConfig.star.light.intensity },
+      starLightDistance: { value: particleConfig.star.light.distance },
+      starLightDecay: { value: particleConfig.star.light.decay }
     },
     vertexShader: `
       attribute float size;
       attribute vec3 particleColor;
       attribute float colorType;
       uniform float pointSizeScale;
+      uniform vec3 starLightPosition;
       varying vec3 vColor;
       varying float vColorType;
+      varying vec3 vWorldPosition;
+      varying vec3 vLightDirection;
       
       void main() {
         vColor = particleColor;
         vColorType = colorType;
+        
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        
+        // 计算光源方向（从粒子指向光源）
+        vLightDirection = starLightPosition - vWorldPosition;
         
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         
@@ -146,9 +161,16 @@ function createParticleCone() {
       uniform vec3 yellowGlowColor;
       uniform float yellowGlowIntensity;
       uniform float glowBloom;
+      uniform float starLightEnabled;
+      uniform vec3 starLightColor;
+      uniform float starLightIntensity;
+      uniform float starLightDistance;
+      uniform float starLightDecay;
       
       varying vec3 vColor;
       varying float vColorType;
+      varying vec3 vWorldPosition;
+      varying vec3 vLightDirection;
       
       void main() {
         vec2 center = vec2(0.5, 0.5);
@@ -168,8 +190,33 @@ function createParticleCone() {
         
         if (alpha < 0.01) discard;
         
+        // 计算粒子表面的法线（假设是球体）
+        vec3 normal = normalize(vec3(coord * 2.0, sqrt(1.0 - min(dot(coord, coord) * 4.0, 1.0))));
+        
         // 完全由内向外发光，不使用环境光和光照
         vec3 finalColor = vec3(0.0);
+        
+        // 计算来自五角星光源的光照
+        vec3 lightContribution = vec3(0.0);
+        if (starLightEnabled > 0.5) {
+          // 计算光源方向
+          vec3 lightDir = normalize(vLightDirection);
+          float lightDistance = length(vLightDirection);
+          
+          // 计算光照衰减（距离衰减）
+          float attenuation = 1.0;
+          if (lightDistance > 0.0) {
+            attenuation = 1.0 / (1.0 + starLightDecay * lightDistance * lightDistance);
+            // 限制影响距离
+            if (lightDistance > starLightDistance) {
+              attenuation = 0.0;
+            }
+          }
+          
+          // 计算漫反射（Lambert光照模型）
+          float dotNL = max(dot(normal, lightDir), 0.0);
+          lightContribution = starLightColor * starLightIntensity * dotNL * attenuation;
+        }
         
         if (glowEnabled > 0.5) {
           // 计算从中心到边缘的距离（归一化到0-1）
@@ -208,6 +255,9 @@ function createParticleCone() {
             brightCenter = pow(brightCenter, 2.0);
             finalColor += yellowGlowColor * particleGlowIntensity * 0.5 * brightCenter;
           }
+          
+          // 添加来自五角星光源的光照效果
+          finalColor += lightContribution * vColor;
         } else {
           // 如果发光未启用，使用基础颜色
           finalColor = vColor;
@@ -265,16 +315,24 @@ function createStar() {
   };
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
-  // 创建发光材质
+  // 创建发光材质，让五角星自身发光
+  // 使用 MeshBasicMaterial 并增强自发光效果
   const material = new THREE.MeshBasicMaterial({
     color: particleConfig.star.color,
     emissive: particleConfig.star.glowColor,
-    emissiveIntensity: particleConfig.star.glowIntensity,
-    transparent: true,
-    opacity: 0.9
+    emissiveIntensity: particleConfig.star.glowIntensity * 2.0, // 增强发光强度
+    transparent: false,
+    side: THREE.DoubleSide
   });
 
   const star = new THREE.Mesh(geometry, material);
+
+  // #region agent log
+  // 检查着色器编译错误
+  const program = material.program;
+  const hasError = program && (program.error || !program.program);
+  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:373', message: 'Star mesh created', data: { hasGeometry: !!star.geometry, hasMaterial: !!star.material, materialType: star.material?.type, hasProgram: !!program, programError: hasError, vertexShaderError: material.vertexShader?.includes('error'), fragmentShaderError: material.fragmentShader?.includes('error') }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
+  // #endregion
 
   // 旋转使五角星竖立在 YZ 平面上（垂直放置），并调整角度使其正立
   star.rotation.z = Math.PI / 2;
@@ -288,6 +346,10 @@ function createStar() {
     particleConfig.star.positionOffset.z
   );
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:385', message: 'Star position set', data: { positionX: star.position.x, positionY: star.position.y, positionZ: star.position.z, rotationZ: star.rotation.z }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' }) }).catch(() => { });
+  // #endregion
+
   return star;
 }
 
@@ -298,9 +360,41 @@ console.log('粒子圆锥体已创建，粒子数量:', particleCone.geometry.at
 
 // 创建并添加五角星
 const star = createStar();
+let starLight = null;
 if (star) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:396', message: 'Before adding star to scene', data: { starExists: !!star, hasGeometry: !!star?.geometry, hasMaterial: !!star?.material }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
+  // #endregion
   scene.add(star);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/1bb3b66e-759d-4ad4-bdba-022ceafa4832', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'main.js:399', message: 'After adding star to scene', data: { starInScene: scene.children.includes(star), sceneChildrenCount: scene.children.length }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
+  // #endregion
   console.log('五角星已创建');
+
+  // 创建五角星光源
+  if (particleConfig.star.light.enabled) {
+    starLight = new THREE.PointLight(
+      particleConfig.star.light.color,
+      particleConfig.star.light.intensity,
+      particleConfig.star.light.distance,
+      particleConfig.star.light.decay
+    );
+
+    // 光源位置与五角星位置相同
+    starLight.position.set(
+      particleConfig.star.positionOffset.x,
+      particleConfig.cone.height + particleConfig.star.positionOffset.y,
+      particleConfig.star.positionOffset.z
+    );
+
+    scene.add(starLight);
+    console.log('五角星光源已创建');
+
+    // 更新着色器中的光源位置
+    if (particleCone.material instanceof THREE.ShaderMaterial) {
+      particleCone.material.uniforms.starLightPosition.value.copy(starLight.position);
+    }
+  }
 }
 
 // 动画循环
@@ -310,7 +404,14 @@ function animate() {
   // 更新粒子材质的时间（用于可能的动画效果）
   if (particleCone.material instanceof THREE.ShaderMaterial) {
     particleCone.material.uniforms.time.value += 0.01;
+
+    // 更新光源位置（如果五角星移动）
+    if (starLight && particleConfig.star.light.enabled) {
+      particleCone.material.uniforms.starLightPosition.value.copy(starLight.position);
+    }
   }
+
+  // 五角星使用 MeshBasicMaterial，不需要更新 uniform
 
   controls.update();
   renderer.render(scene, camera);
