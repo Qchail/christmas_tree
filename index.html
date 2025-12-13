@@ -409,7 +409,7 @@
 
     .prompt-buttons {
       display: flex;
-      gap: 20px;
+      gap: 60px;
       justify-content: center;
     }
 
@@ -818,19 +818,29 @@
       const musicNoBtn = document.getElementById('music-no-btn');
 
       if (musicYesBtn) {
-        musicYesBtn.addEventListener('click', () => {
+        musicYesBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); // 阻止事件冒泡，防止触发照片点击
           startMusic();
         });
       }
 
       if (musicNoBtn) {
-        musicNoBtn.addEventListener('click', () => {
+        musicNoBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); // 阻止事件冒泡，防止触发照片点击
           // 用户选择不播放，直接隐藏提示
           isMuted = true; // 设置为静音状态
           bgm.muted = true;
           soundToggle.textContent = '🔇';
           soundToggle.classList.add('muted');
           hidePrompt();
+        });
+      }
+
+      // 阻止提示框内容区域的点击事件冒泡
+      const promptContent = document.querySelector('.prompt-content');
+      if (promptContent) {
+        promptContent.addEventListener('click', (e) => {
+          e.stopPropagation(); // 阻止事件冒泡，防止触发照片点击
         });
       }
 
