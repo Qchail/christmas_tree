@@ -1,4 +1,9 @@
 // 手势控制模块
+// MediaPipe 包是 IIFE 格式，导入后会设置全局变量
+import '@mediapipe/hands';
+import '@mediapipe/camera_utils';
+import '@mediapipe/drawing_utils';
+
 export class GestureController {
   constructor(options = {}) {
     this.videoElement = document.querySelector('.input_video');
@@ -35,19 +40,36 @@ export class GestureController {
     this.gestureTransitionTime = 0; // 手势转换时间戳
     this.transitionCooldown = 300; // 转换冷却期（毫秒），在此期间忽略比耶手势
 
+    // 保存绘制函数和连接信息供后续使用
+    // 这些函数在导入 @mediapipe/drawing_utils 后会在全局对象上可用
+    this.drawConnectors = null;
+    this.drawLandmarks = null;
+    this.HAND_CONNECTIONS = null; // 将在 init 中从全局对象获取
+
     this.init();
   }
 
   init() {
-    if (!window.Hands) {
+    // MediaPipe 包导入后会在全局对象上设置变量
+    const Hands = window.Hands;
+    const Camera = window.Camera;
+    const HAND_CONNECTIONS = window.HAND_CONNECTIONS;
+
+    if (!Hands || !Camera || !HAND_CONNECTIONS) {
       this.statusElement.textContent = '正在加载组件...';
       setTimeout(() => this.init(), 500);
       return;
     }
 
-    this.hands = new window.Hands({
+    // 保存 HAND_CONNECTIONS 供后续使用
+    this.HAND_CONNECTIONS = HAND_CONNECTIONS;
+
+    this.hands = new Hands({
       locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        // 使用本地 node_modules 中的文件
+        // Vite 开发服务器会自动提供 node_modules 中的文件
+        // 在生产构建中，需要确保这些文件被正确复制（通过 vite-plugin-static-copy 或类似插件）
+        return `/node_modules/@mediapipe/hands/${file}`;
       }
     });
 
@@ -60,7 +82,7 @@ export class GestureController {
 
     this.hands.onResults(this.onResults.bind(this));
 
-    this.camera = new window.Camera(this.videoElement, {
+    this.camera = new Camera(this.videoElement, {
       onFrame: async () => {
         if (this.isActive) {
           await this.hands.send({ image: this.videoElement });
@@ -146,8 +168,9 @@ export class GestureController {
       const landmarks = results.multiHandLandmarks[0];
 
       // 绘制骨架
+      // 使用全局对象上的绘制函数
       if (window.drawConnectors && window.drawLandmarks) {
-        window.drawConnectors(this.canvasCtx, landmarks, window.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+        window.drawConnectors(this.canvasCtx, landmarks, this.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
         window.drawLandmarks(this.canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 3 });
       }
 

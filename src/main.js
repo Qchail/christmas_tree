@@ -2993,58 +2993,56 @@ window.addEventListener('resize', () => {
 
 // 初始化手势控制
 document.addEventListener('DOMContentLoaded', () => {
-  // 延迟初始化，确保 MediaPipe 脚本加载完成
-  setTimeout(() => {
-    // 初始化手势控制
-    const gestureController = new GestureController({
-      onScatter: () => {
-        if (!isScattered) toggleScatter();
-      },
-      onGather: () => {
-        if (isScattered) toggleScatter();
-      },
-      onIndexPointing: () => {
-        // 单指手势：模拟按下 S 键随机打开照片
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
-      },
-      onIndexPointingEnd: () => {
-        // 取消单指手势：模拟按下 Esc 键关闭照片
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      },
-      onZoom: (scale) => {
-        // 根据手掌大小变化缩放画面
-        if (!controls) return;
+  // MediaPipe 现在通过 ES 模块导入，无需延迟
+  // 初始化手势控制
+  const gestureController = new GestureController({
+    onScatter: () => {
+      if (!isScattered) toggleScatter();
+    },
+    onGather: () => {
+      if (isScattered) toggleScatter();
+    },
+    onIndexPointing: () => {
+      // 单指手势：模拟按下 S 键随机打开照片
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
+    },
+    onIndexPointingEnd: () => {
+      // 取消单指手势：模拟按下 Esc 键关闭照片
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    },
+    onZoom: (scale) => {
+      // 根据手掌大小变化缩放画面
+      if (!controls) return;
 
-        // 调整灵敏度（值越小越不敏感，0.2 表示较低的敏感度）
-        const zoomSpeed = 0.2;
-        const factor = Math.pow(scale, zoomSpeed);
+      // 调整灵敏度（值越小越不敏感，0.2 表示较低的敏感度）
+      const zoomSpeed = 0.2;
+      const factor = Math.pow(scale, zoomSpeed);
 
-        // 手动计算缩放 (改变相机与目标的距离)
-        // 获取当前相机相对于目标的偏移向量
-        const offset = new THREE.Vector3();
-        offset.copy(camera.position).sub(controls.target);
+      // 手动计算缩放 (改变相机与目标的距离)
+      // 获取当前相机相对于目标的偏移向量
+      const offset = new THREE.Vector3();
+      offset.copy(camera.position).sub(controls.target);
 
-        // 获取当前距离
-        const radius = offset.length();
+      // 获取当前距离
+      const radius = offset.length();
 
-        // 计算新距离：手变大(scale > 1) -> 距离变小; 手变小(scale < 1) -> 距离变大
-        let newRadius = radius / factor;
+      // 计算新距离：手变大(scale > 1) -> 距离变小; 手变小(scale < 1) -> 距离变大
+      let newRadius = radius / factor;
 
-        // 限制缩放范围 (使用 controls 的配置)
-        newRadius = Math.max(controls.minDistance, Math.min(controls.maxDistance, newRadius));
+      // 限制缩放范围 (使用 controls 的配置)
+      newRadius = Math.max(controls.minDistance, Math.min(controls.maxDistance, newRadius));
 
-        // 应用新距离
-        offset.setLength(newRadius);
-        camera.position.copy(controls.target).add(offset);
+      // 应用新距离
+      offset.setLength(newRadius);
+      camera.position.copy(controls.target).add(offset);
 
-        controls.update();
-      }
-    });
+      controls.update();
+    }
+  });
 
-    // 点击小窗切换开启/关闭状态
-    const gestureContainer = document.getElementById('gesture-container');
-    gestureContainer.addEventListener('click', () => {
-      gestureController.toggle();
-    });
-  }, 1000);
+  // 点击小窗切换开启/关闭状态
+  const gestureContainer = document.getElementById('gesture-container');
+  gestureContainer.addEventListener('click', () => {
+    gestureController.toggle();
+  });
 });
