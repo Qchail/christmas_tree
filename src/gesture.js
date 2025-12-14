@@ -32,6 +32,8 @@ export class GestureController {
     // 手势状态追踪
     this.lastGesture = 'NONE'; // NONE, FIST, OPEN
     this.lastPalmSize = 0; // 用于缩放计算
+    this.gestureTransitionTime = 0; // 手势转换时间戳
+    this.transitionCooldown = 300; // 转换冷却期（毫秒），在此期间忽略比耶手势
 
     this.init();
   }
@@ -245,6 +247,7 @@ export class GestureController {
 
   detectAndTriggerGesture(landmarks) {
     const gesture = this.detectHandPose(landmarks);
+    const now = Date.now();
 
     // 如果是未知手势，直接忽略，保持上一个有效状态
     // 这样可以解决 FIST -> UNKNOWN -> OPEN 导致动作链断裂的问题
@@ -252,22 +255,38 @@ export class GestureController {
 
     // 状态变更触发事件
     if (gesture !== this.lastGesture) {
+      // 检测是否在握拳和伸掌之间转换
+      const isFistToOpen = this.lastGesture === 'FIST' && gesture === 'OPEN';
+      const isOpenToFist = this.lastGesture === 'OPEN' && gesture === 'FIST';
+
+      // 如果在握拳和伸掌之间转换，记录转换时间，并忽略比耶手势
+      if (isFistToOpen || isOpenToFist) {
+        this.gestureTransitionTime = now;
+      }
+
       // 握拳 -> 伸掌 : 散开
-      if (this.lastGesture === 'FIST' && gesture === 'OPEN') {
+      if (isFistToOpen) {
         this.showStatus('识别: 散开');
         this.callbacks.onScatter();
       }
 
       // 伸掌 -> 握拳 : 聚拢
-      if (this.lastGesture === 'OPEN' && gesture === 'FIST') {
+      if (isOpenToFist) {
         this.showStatus('识别: 聚拢');
         this.callbacks.onGather();
       }
 
       // 进入比耶手势 : 随机看照片
+      // 如果在转换冷却期内，忽略比耶手势，避免误判
       if (gesture === 'INDEX_POINTING') {
-        this.showStatus('识别: 比耶✌🏻 随机照片');
-        this.callbacks.onIndexPointing();
+        const timeSinceTransition = now - this.gestureTransitionTime;
+        if (timeSinceTransition > this.transitionCooldown) {
+          this.showStatus('识别: 比耶✌🏻 随机照片');
+          this.callbacks.onIndexPointing();
+        } else {
+          // 在冷却期内，忽略比耶手势，不更新状态
+          return;
+        }
       }
 
       // 退出比耶手势 : 关闭照片
@@ -304,6 +323,7 @@ export class GestureController {
     // 1. 食指和中指必须伸直
     // 2. 无名指和小指都必须弯曲（避免将五指张开误判为比耶）
     // 3. 使用距离检查确保弯曲程度足够明显
+    // 注意：不要求拇指弯曲，因为比耶时拇指可能不完全弯曲
     const isVictory = !indexBent && !middleBent && ringBent && pinkyBent;
 
     if (isVictory) {
@@ -315,11 +335,15 @@ export class GestureController {
       const pinkyDist = this.calculateDistance(landmarks[20], wrist);
 
       // 无名指和小指到手腕的距离应该明显小于食指和中指
-      // 这样可以确保它们确实弯曲了，而不是只是稍微弯曲
-      const ringBentEnough = ringDist < indexDist * 0.85;
-      const pinkyBentEnough = pinkyDist < indexDist * 0.85;
+      // 使用0.8的阈值，既避免误判又不过于严格
+      const ringBentEnough = ringDist < indexDist * 0.8;
+      const pinkyBentEnough = pinkyDist < indexDist * 0.8;
 
-      if (ringBentEnough && pinkyBentEnough) {
+      // 检查：食指和中指应该明显伸直（距离应该足够大）
+      // 放宽条件：只需要食指和中指的距离明显大于无名指即可
+      const indexStraightEnough = indexDist > ringDist * 1.1 && middleDist > ringDist * 1.1;
+
+      if (ringBentEnough && pinkyBentEnough && indexStraightEnough) {
         return 'INDEX_POINTING';
       }
     }
