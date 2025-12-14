@@ -13,7 +13,7 @@ const generateMediaPipeDataUriMap = () => {
       if (!existsSync(handsDir)) return
 
       const files = readdirSync(handsDir)
-      const dataUriMap = {}
+      const dataUriMap: Record<string, string> = {}
 
       for (const file of files) {
         const filePath = join(handsDir, file)
