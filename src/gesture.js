@@ -1,8 +1,56 @@
 // 手势控制模块
 // MediaPipe 包是 IIFE 格式，导入后会设置全局变量
-import '@mediapipe/hands';
-import '@mediapipe/camera_utils';
-import '@mediapipe/drawing_utils';
+let mediapipeLoaded = false;
+
+// 动态加载 MediaPipe 模块
+async function loadMediaPipe() {
+  if (mediapipeLoaded) return;
+
+  // 检查是否已经在全局对象上
+  if (window.Hands && window.Camera && window.HAND_CONNECTIONS) {
+    mediapipeLoaded = true;
+    return;
+  }
+
+  // 在开发环境中使用 ES 模块导入
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+      await import('@mediapipe/hands');
+      await import('@mediapipe/camera_utils');
+      await import('@mediapipe/drawing_utils');
+      mediapipeLoaded = true;
+      return;
+    }
+  } catch (e) {
+    // 如果 ES 模块导入失败，继续使用脚本加载
+    console.log('ES 模块导入失败，使用脚本加载:', e);
+  }
+
+  // 在生产环境中，如果全局变量不存在，尝试动态加载脚本
+  if (!window.Hands || !window.Camera) {
+    // 创建 script 标签动态加载
+    const scripts = [
+      './node_modules/@mediapipe/hands/hands.js',
+      './node_modules/@mediapipe/camera_utils/camera_utils.js',
+      './node_modules/@mediapipe/drawing_utils/drawing_utils.js'
+    ];
+
+    for (const src of scripts) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = () => {
+          console.error('加载 MediaPipe 脚本失败:', src);
+          reject(new Error(`Failed to load ${src}`));
+        };
+        document.head.appendChild(script);
+      });
+    }
+  }
+
+  mediapipeLoaded = true;
+}
 
 export class GestureController {
   constructor(options = {}) {
@@ -49,7 +97,17 @@ export class GestureController {
     this.init();
   }
 
-  init() {
+  async init() {
+
+    // 确保 MediaPipe 已加载
+    try {
+      await loadMediaPipe();
+    } catch (error) {
+      console.error('加载 MediaPipe 失败:', error);
+      this.statusElement.textContent = '加载组件失败，请刷新页面重试';
+      return;
+    }
+
     // MediaPipe 包导入后会在全局对象上设置变量
     const Hands = window.Hands;
     const Camera = window.Camera;
@@ -57,6 +115,7 @@ export class GestureController {
 
     if (!Hands || !Camera || !HAND_CONNECTIONS) {
       this.statusElement.textContent = '正在加载组件...';
+      // 如果还没加载完成，等待一下再试
       setTimeout(() => this.init(), 500);
       return;
     }
@@ -66,10 +125,32 @@ export class GestureController {
 
     this.hands = new Hands({
       locateFile: (file) => {
-        // 使用本地 node_modules 中的文件
-        // Vite 开发服务器会自动提供 node_modules 中的文件
-        // 在生产构建中，需要确保这些文件被正确复制（通过 vite-plugin-static-copy 或类似插件）
-        return `/node_modules/@mediapipe/hands/${file}`;
+        // 在开发环境使用绝对路径
+        try {
+          if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+            return `/node_modules/@mediapipe/hands/${file}`;
+          }
+        } catch (e) { }
+
+        // 在生产环境，检查是否是 file:// 协议
+        const isFileProtocol = window.location.protocol === 'file:';
+
+        // 如果在 file:// 协议下，且存在 data URI 映射，使用 data URI
+        if (isFileProtocol) {
+          // 等待映射加载完成（最多等待 5 秒）
+          if (window.MEDIAPIPE_DATA_URI_MAP) {
+            const dataUri = window.MEDIAPIPE_DATA_URI_MAP[file];
+            if (dataUri) {
+              return dataUri;
+            }
+          } else {
+            // 如果映射还没加载，等待一下
+            console.warn(`MediaPipe data URI map not loaded yet, file: ${file}`);
+          }
+        }
+
+        // 回退到相对路径（在 HTTP 协议下可用，或在 file:// 协议下作为后备）
+        return `./node_modules/@mediapipe/hands/${file}`;
       }
     });
 

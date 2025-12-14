@@ -413,7 +413,23 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比，避免过度渲染
 renderer.setClearColor(0x000000, 1);
-document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// 延迟 DOM 操作，确保 DOM 已加载
+function initCanvas() {
+  const container = document.getElementById('canvas-container');
+  if (container) {
+    container.appendChild(renderer.domElement);
+  } else {
+    // 如果 DOM 还没加载，等待一下
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initCanvas);
+    } else {
+      setTimeout(initCanvas, 100);
+    }
+    return;
+  }
+}
+initCanvas();
 
 // 控制器设置（支持旋转、缩放、拖拽）
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -2015,15 +2031,44 @@ window.addEventListener('click', (event) => {
 });
 
 // 照片遮罩层逻辑
-const overlay = document.getElementById('photo-overlay');
-const overlayImg = document.getElementById('photo-img');
-const closeBtn = document.getElementById('close-btn');
+let overlay, overlayImg, closeBtn;
 let isPhotoLoading = false; // 标记图片是否正在加载
 let closeOverlayTimeout = null; // 用于存储关闭动画的定时器 ID
+
+// 初始化遮罩层元素（延迟到 DOM 加载后）
+function initOverlayElements() {
+  overlay = document.getElementById('photo-overlay');
+  overlayImg = document.getElementById('photo-img');
+  closeBtn = document.getElementById('close-btn');
+
+  // 注册事件监听器
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closePhotoOverlay);
+  }
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay || e.target.id === 'photo-container') {
+        closePhotoOverlay();
+      }
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initOverlayElements);
+} else {
+  initOverlayElements();
+}
 
 function openPhotoOverlay(src) {
   if (!src || typeof src !== 'string' || src.length === 0) {
     console.warn('无效的图片源:', src);
+    return;
+  }
+
+  // 确保元素已初始化
+  if (!overlay || !overlayImg) {
+    console.warn('遮罩层元素未初始化');
     return;
   }
 
@@ -2071,6 +2116,8 @@ function openPhotoOverlay(src) {
 }
 
 function closePhotoOverlay() {
+  if (!overlay || !overlayImg) return;
+
   overlay.classList.remove('active');
   // 清除加载状态
   isPhotoLoading = false;
@@ -2087,13 +2134,6 @@ function closePhotoOverlay() {
   // 恢复自动旋转
   controls.autoRotate = true;
 }
-
-closeBtn.addEventListener('click', closePhotoOverlay);
-overlay.addEventListener('click', (e) => {
-  if (e.target === overlay || e.target.id === 'photo-container') {
-    closePhotoOverlay();
-  }
-});
 
 // 创建并添加螺旋光带
 const spiralRibbon = createSpiralRibbon();
