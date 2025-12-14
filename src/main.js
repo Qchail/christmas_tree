@@ -1919,6 +1919,9 @@ function recreatePhotoCards() {
   if (photoCards) {
     scene.add(photoCards);
     console.log('照片卡片已重新创建，数量:', photoCards.children.length);
+    // 重新保存原始位置和生成散开位置，确保散开功能正常工作
+    saveOriginalPositions();
+    generateScatteredPositions();
   }
 }
 
@@ -2715,6 +2718,21 @@ function toggleScatter() {
       // 如果没有保存原始位置，则保持当前位置
       cameraAnimationState.targetRadius = cameraAnimationState.startRadius;
       cameraAnimationState.targetPhi = cameraAnimationState.startPhi;
+    }
+  }
+
+  // 确保所有元素的位置数据都已准备好
+  // 检查照片卡片：如果原始位置为空、散开位置为空，或数组长度不匹配，重新保存和生成
+  if (photoCards && photoCards.children.length > 0) {
+    const photoCardsCount = photoCards.children.length;
+    const originalCount = originalPositions.photoCards.length;
+    const scatteredCount = scatteredPositions.photoCards ? scatteredPositions.photoCards.length : 0;
+
+    if (originalCount === 0 ||
+      originalCount !== photoCardsCount ||
+      (isScattered && (scatteredCount === 0 || scatteredCount !== photoCardsCount))) {
+      saveOriginalPositions();
+      generateScatteredPositions();
     }
   }
 
